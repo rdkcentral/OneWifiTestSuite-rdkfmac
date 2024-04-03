@@ -53,7 +53,7 @@ struct ieee80211_local;
 #define RDKFMAC_MAJOR		42
 #define BUF_LEN 256
 #define RDKFMAC_DEVICE_NAME "rdkfmac_dev"
-#define RDKFMAC_DEVICE_DRIVER_NAME"rdkfmac_device_driver"
+#define RDKFMAC_DEVICE_DRIVER_NAME "rdkfmac_device_driver"
 #define RDKFMAC_CLASS_NAME "rdkfmac_class"
 #define RDKFMAC_WDOG_TIMEOUT	5
 #define RDKFMAC_PRIMARY_VIF_IDX	0
@@ -1865,7 +1865,7 @@ struct ieee80211_sub_if_data {
 	u32 rc_rateidx_mask[NUM_NL80211_BANDS];
 
 	bool rc_has_mcs_mask[NUM_NL80211_BANDS];
-	u8rc_rateidx_mcs_mask[NUM_NL80211_BANDS][IEEE80211_HT_MCS_MASK_LEN];
+	u8 rc_rateidx_mcs_mask[NUM_NL80211_BANDS][IEEE80211_HT_MCS_MASK_LEN];
 
 	bool rc_has_vht_mcs_mask[NUM_NL80211_BANDS];
 	u16 rc_rateidx_vht_mcs_mask[NUM_NL80211_BANDS][NL80211_VHT_NSS_MAX];

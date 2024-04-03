@@ -623,7 +623,7 @@ static void handle_frame_probe_req(struct ieee80211_mgmt *probe_req, unsigned in
 	return;
 }
 
-static void handle_frame_probe_resp(struct ieee80211_mgmt *probe_resp, unsigned intprobe_resp_len) {
+static void handle_frame_probe_resp(struct ieee80211_mgmt *probe_resp, unsigned int probe_resp_len) {
 	wlan_emu_msg_data_t *add_probe_resp_msg;
 
 	add_probe_resp_msg = kzalloc(sizeof(wlan_emu_msg_data_t), GFP_KERNEL);
@@ -647,7 +647,7 @@ static void handle_frame_probe_resp(struct ieee80211_mgmt *probe_resp, unsigned 
 	return;
 }
 
-static void handle_frame_assoc_req(struct ieee80211_mgmt *assoc_req, unsigned intassoc_req_len) {
+static void handle_frame_assoc_req(struct ieee80211_mgmt *assoc_req, unsigned int assoc_req_len) {
 	wlan_emu_msg_data_t *add_assoc_req_msg;
 
 	add_assoc_req_msg = kzalloc(sizeof(wlan_emu_msg_data_t), GFP_KERNEL);
@@ -4085,7 +4085,7 @@ static void nl80211_calculate_ap_params(struct cfg80211_ap_settings *params)
 
 static void parse_start_ap(struct genl_info *info)
 {
-	intidx = 0, wiphy_idx=0;
+	int idx = 0, wiphy_idx=0;
 	struct cfg80211_ap_settings *ap_params;
 	wlan_emu_msg_data_t *start_ap_msg;
 

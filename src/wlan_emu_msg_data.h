@@ -183,7 +183,7 @@ typedef struct {
 typedef struct {
 	wlan_emu_emu80211_cmd_type_t	type;
 	unsigned char cmd_buffer[1024];
-	unsigned intbuff_len;
+	unsigned int buff_len;
 } wlan_emu_emu80211_command_t;
 
 typedef enum {

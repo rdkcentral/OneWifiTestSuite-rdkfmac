@@ -2,7 +2,7 @@
 
 struct rdkfmac_device_data g_char_device;
 static DECLARE_WAIT_QUEUE_HEAD(rdkfmac_rq); 
-static wlan_emu_msg_data_t*pop_from_char_device(void);
+static wlan_emu_msg_data_t *pop_from_char_device(void);
 static unsigned int get_list_entries_count_in_char_device(void);
 
 const char *rdkfmac_cfg80211_ops_type_to_string(wlan_emu_cfg80211_ops_type_t type)
