@@ -854,6 +854,38 @@ static netdev_tx_t hwsim_mon_xmit(struct sk_buff *skb,
 
 	skb_orphan(skb);
 
+	//XXX should be taken from radio header
+	const u8 *tmp;
+	u32 freq = 2462;
+	int channel_number = -1;
+	struct ieee80211_mgmt *mgmt;
+	size_t ielen = skb->len - offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
+
+	mgmt = (struct ieee80211_mgmt *)skb->data;
+	tmp = cfg80211_find_ie(WLAN_EID_DS_PARAMS, mgmt->u.beacon.variable, ielen);
+
+	if (tmp && tmp[1] == 1) {
+		channel_number = tmp[2];
+	} else {
+		tmp = cfg80211_find_ie(WLAN_EID_HT_OPERATION, mgmt->u.beacon.variable, ielen);
+		if (tmp && tmp[1] >= sizeof(struct ieee80211_ht_operation)) {
+			struct ieee80211_ht_operation *htop = (void *)(tmp + 2);
+
+			channel_number = htop->primary_chan;
+		}
+	}
+
+	if (channel_number > 0) {
+		if (channel_number== 14)
+			freq = 2484;
+		else if (channel_number< 14)
+			freq = 2407 + channel_number* 5;
+		else if (channel_number>= 182 && channel_number<= 196)
+			freq = 4000 + channel_number* 5;
+		else
+			freq = 5000 + channel_number* 5;
+	}
+
 	spin_lock(&hwsim_radio_lock);
 	list_for_each_entry(nic, &hwsim_radios, list) {
 		struct sk_buff *nskb;
@@ -864,7 +896,7 @@ static netdev_tx_t hwsim_mon_xmit(struct sk_buff *skb,
 		if(nskb == NULL)
 		continue;
 
-		rx_status.freq = 2462;
+		rx_status.freq = freq;
 		memcpy(IEEE80211_SKB_RXCB(nskb), &rx_status, sizeof(rx_status));
 
 		ieee80211_rx_irqsafe(nic->hw, nskb);
