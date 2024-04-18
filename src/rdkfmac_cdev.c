@@ -107,6 +107,11 @@ void push_to_char_device(wlan_emu_msg_data_t *data)
 			strcpy(str_ops, rdkfmac_emu80211_ops_type_to_string(spec->u.emu80211.ops));
 			break;
 
+		case wlan_emu_msg_type_webconfig:
+			strcpy(str_spec_type, "webconfig");
+			strcpy(str_ops, "onewifi_webconfig");
+			break;
+
 		default:
 			break;
 	}
@@ -237,6 +242,11 @@ static ssize_t rdkfmac_write(struct file *file, const char __user *user_buffer,
 		case wlan_emu_msg_type_emu80211:
 			memcpy(&spec, read_buff, sizeof(wlan_emu_msg_data_t));
 			handle_emu80211_msg_w(&spec);
+			sz = sizeof(wlan_emu_msg_data_t);
+			break;
+		case wlan_emu_msg_type_webconfig:
+			memcpy(&spec, read_buff, sizeof(wlan_emu_msg_data_t));
+			push_to_char_device(&spec);
 			sz = sizeof(wlan_emu_msg_data_t);
 			break;
 		default:
@@ -584,6 +594,25 @@ void handle_emu80211_msg(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s_tmp)
 	return;
 }
 
+
+void handle_webconfig_msg(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s_tmp)
+{
+	if ((spec == NULL) || (s_tmp == NULL) || (len == NULL)) {
+		printk(KERN_INFO "%s:%d: NULL Pointer spec : %p s_tmp : %s len : %p \n", __func__, __LINE__, spec, s_tmp, len);
+		return;
+	}
+
+	memcpy(s_tmp, &spec->type, sizeof(wlan_emu_msg_type_t));
+	s_tmp += sizeof(wlan_emu_msg_type_t);
+	*len += sizeof(wlan_emu_msg_type_t);
+
+	memcpy(s_tmp, &spec->u.ow_webconfig.subdoc_type, sizeof(webconfig_subdoc_type_t));
+	s_tmp += sizeof(webconfig_subdoc_type_t);
+	*len += sizeof(webconfig_subdoc_type_t);
+
+    return;
+}
+
 static void handle_frame(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s_tmp)
 {
 	memcpy(s_tmp, &spec->type, sizeof(wlan_emu_msg_type_t));
@@ -663,6 +692,9 @@ static ssize_t rdkfmac_read(struct file *file, char __user *user_buffer,
 		case wlan_emu_msg_type_frm80211:
 			handle_frm80211_msg(spec, &return_len, s_tmp);
 			break;
+		case wlan_emu_msg_type_webconfig:
+			handle_webconfig_msg(spec, &return_len, s_tmp);
+			break;
 		default:
 			break;
 	}
@@ -678,7 +710,7 @@ static int rdkfmac_open(struct inode *inode, struct file *file)
 
 	g_char_device.num_inst++;
 		printk(KERN_INFO "%s:%d Opened Instances: %d\n", __func__, __LINE__, g_char_device.num_inst);
-	
+
 	return 0;
 }
 
@@ -687,7 +719,7 @@ static int rdkfmac_release(struct inode *inode, struct file *file)
 	if (g_char_device.num_inst > 0) {
 		g_char_device.num_inst--;
 	}
-	
+
 		printk(KERN_INFO "%s:%d Opened Instances: %d\n", __func__, __LINE__, g_char_device.num_inst);
 		return 0;
 }
@@ -704,7 +736,7 @@ const struct file_operations rdkfmac_fops = {
 int init_rdkfmac_cdev(void)
 {
 	int ret_val;
-	
+
 	printk(KERN_INFO "%s:%d\n", __func__, __LINE__);
 	ret_val = register_chrdev_region(MKDEV(RDKFMAC_MAJOR, 0), 1, RDKFMAC_DEVICE_DRIVER_NAME);
 	if (ret_val != 0) {
@@ -726,7 +758,7 @@ int init_rdkfmac_cdev(void)
 	g_char_device.list_tail = &g_char_device.list_head;
 	printk(KERN_INFO "%s:%d: registered successfully\n", __func__, __LINE__);
 	g_char_device.tdev = MKDEV(RDKFMAC_MAJOR, 0);
-	g_char_device.dev = device_create(g_char_device.class, NULL, 
+	g_char_device.dev = device_create(g_char_device.class, NULL,
 				g_char_device.tdev, NULL, RDKFMAC_DEVICE_NAME);
 
 	return 0;
@@ -738,7 +770,7 @@ void cleanup_rdkfmac_cdev(void)
 	class_destroy(g_char_device.class);
 	cdev_del(&g_char_device.cdev);
 	unregister_chrdev_region(MKDEV(RDKFMAC_MAJOR, 0), 1);
-		
+
 	printk(KERN_INFO "%s:%d: unregistered successfully\n", __func__, __LINE__);
 }
 
@@ -762,14 +794,14 @@ wlan_emu_msg_data_t*pop_from_char_device(void)
 	if (g_char_device.list_tail == &g_char_device.list_head) {
 		printk("%s:%d list is empty\n", __func__, __LINE__);
 		return NULL;
-	}	
+	}
 
 	entry = list_entry(g_char_device.list_tail, wlan_emu_msg_data_entry_t, list_entry);
 
 	g_char_device.list_tail= g_char_device.list_tail->prev;
 	list_del(&entry->list_entry);
 
-	spec = entry->spec;	
+	spec = entry->spec;
 	kfree(entry);
 
 	return spec;

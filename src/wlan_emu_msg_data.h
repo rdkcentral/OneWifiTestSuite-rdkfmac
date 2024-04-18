@@ -191,7 +191,8 @@ typedef enum {
 	wlan_emu_msg_type_emu80211,
 	wlan_emu_msg_type_cfg80211,
 	wlan_emu_msg_type_mac80211,
-	wlan_emu_msg_type_frm80211
+	wlan_emu_msg_type_frm80211,
+	wlan_emu_msg_type_webconfig
 } wlan_emu_msg_type_t;
 
 typedef enum {
@@ -271,20 +272,27 @@ typedef struct {
 } wlan_emu_msg_cfg80211_t;
 
 typedef struct {
-	wlan_emu_mac80211_ops_type_t ops;	
+	wlan_emu_mac80211_ops_type_t ops;
 	union {
-		wlan_emu_mac80211_tx_t	tx;	
-		wlan_emu_mac80211_start_t	start;	
-		wlan_emu_mac80211_stop_t	stop;	
-		wlan_emu_mac80211_add_intf_t	add_intf;	
-		wlan_emu_mac80211_change_intf_t	change_intf;	
-		wlan_emu_mac80211_remove_intf_t	remove_intf;	
-		wlan_emu_mac80211_config_t	config;	
-		wlan_emu_mac80211_bss_info_changed_t	bss_info_changed;	
-		wlan_emu_mac80211_start_ap_t	start_ap;	
+		wlan_emu_mac80211_tx_t	tx;
+		wlan_emu_mac80211_start_t	start;
+		wlan_emu_mac80211_stop_t	stop;
+		wlan_emu_mac80211_add_intf_t	add_intf;
+		wlan_emu_mac80211_change_intf_t	change_intf;
+		wlan_emu_mac80211_remove_intf_t	remove_intf;
+		wlan_emu_mac80211_config_t	config;
+		wlan_emu_mac80211_bss_info_changed_t	bss_info_changed;
+		wlan_emu_mac80211_start_ap_t	start_ap;
 		wlan_emu_mac80211_stop_ap_t	stop_ap;
 	} u;
 } wlan_emu_msg_mac80211_t;
+
+//Assuming webconfig_subdoc_type_t as int
+typedef int webconfig_subdoc_type_t;
+
+typedef struct {
+	webconfig_subdoc_type_t subdoc_type;
+} wlan_emu_msg_type_webconfig_t;
 
 typedef struct {
 	wlan_emu_msg_type_t	type;
@@ -293,6 +301,7 @@ typedef struct {
 		wlan_emu_msg_mac80211_t	mac80211;
 		wlan_emu_msg_emu80211_t	emu80211;
 		wlan_emu_msg_frm80211_t frm80211;
+		wlan_emu_msg_type_webconfig_t  ow_webconfig;
 	} u;
 } wlan_emu_msg_data_t;
 
