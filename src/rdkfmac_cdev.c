@@ -4,6 +4,7 @@ struct rdkfmac_device_data g_char_device;
 static DECLARE_WAIT_QUEUE_HEAD(rdkfmac_rq); 
 static wlan_emu_msg_data_t *pop_from_char_device(void);
 static unsigned int get_list_entries_count_in_char_device(void);
+static bool  rdkfmac_emu80211_close = true;
 
 const char *rdkfmac_cfg80211_ops_type_to_string(wlan_emu_cfg80211_ops_type_t type)
 {
@@ -85,6 +86,10 @@ void push_to_char_device(wlan_emu_msg_data_t *data)
 		return;
 	}
 
+	if (rdkfmac_emu80211_close == true)  {
+		return;
+	}
+
 	entry = kmalloc(sizeof(wlan_emu_msg_data_entry_t), GFP_KERNEL);
 	spec = kmalloc(sizeof(wlan_emu_msg_data_t), GFP_KERNEL);
 	entry->spec = spec;
@@ -163,8 +168,15 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 
 static void handle_emu80211_msg_w(wlan_emu_msg_data_t *spec) {
 	switch (spec->u.emu80211.ops) {
-		case wlan_emu_emu80211_ops_type_close:
 		case wlan_emu_emu80211_ops_type_tctrl:
+			if (spec->u.emu80211.u.ctrl.ctrl == wlan_emu_emu80211_ctrl_tstart) {
+				rdkfmac_emu80211_close = false;
+			} else if (spec->u.emu80211.u.ctrl.ctrl == wlan_emu_emu80211_ctrl_tstop) {
+				rdkfmac_emu80211_close = true;
+			}
+			push_to_char_device(spec);
+			break;
+		case wlan_emu_emu80211_ops_type_close:
 			push_to_char_device(spec);
 			break;
 		case wlan_emu_emu80211_ops_type_cmnd:
