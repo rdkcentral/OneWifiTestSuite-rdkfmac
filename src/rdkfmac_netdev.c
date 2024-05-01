@@ -3186,6 +3186,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		goto failed_final_insert;
 	}
 
+	data->heart_beat_data = NULL;
 	list_add_tail(&data->list, &hwsim_radios);
 	hwsim_radios_generation++;
 	spin_unlock_bh(&hwsim_radio_lock);
@@ -3252,6 +3253,49 @@ static void mac80211_hwsim_del_radio(struct mac80211_rdkfmac_data *data,
 	device_release_driver(data->dev);
 	device_unregister(data->dev);
 	ieee80211_free_hw(data->hw);
+	if (data->heart_beat_data != NULL) {
+		kfree(data->heart_beat_data);
+		data->heart_beat_data = NULL;
+	}
+}
+
+int update_heartbeat_data(heart_beat_data_t *heart_beat_data)
+{
+	bool phy_index_present = false;
+	struct mac80211_rdkfmac_data *data = NULL;
+	if (heart_beat_data == NULL) {
+		printk("%s input arguement is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	spin_lock_bh(&hwsim_radio_lock);
+	list_for_each_entry(data, &hwsim_radios, list) {
+		if (heart_beat_data->phy_index >= 0) {
+			if (data->idx == heart_beat_data->phy_index) {
+				phy_index_present = true;
+			} else {
+				continue;
+			}
+
+			if (phy_index_present == true) {
+				if (data->heart_beat_data == NULL) {
+					data->heart_beat_data = kmalloc(sizeof(heart_beat_data_t), GFP_KERNEL);
+					if (data->heart_beat_data == NULL) {
+						printk("%s heart beat data allocation failed\n", __func__);
+						spin_unlock_bh(&hwsim_radio_lock);
+						return -ENOMEM;
+					}
+				}
+				memcpy(data->heart_beat_data, heart_beat_data, sizeof(heart_beat_data_t));
+				printk("%s heart beat for phy : %d rssi : %d\n", __func__, data->heart_beat_data->phy_index, data->heart_beat_data->rssi);
+				spin_unlock_bh(&hwsim_radio_lock);
+				return 0;
+			}
+		}
+	}
+	printk("%s heart beat failed\n", __func__);
+	spin_unlock_bh(&hwsim_radio_lock);
+	return EINVAL;
 }
 
 static int mac80211_hwsim_get_radio(struct sk_buff *skb,

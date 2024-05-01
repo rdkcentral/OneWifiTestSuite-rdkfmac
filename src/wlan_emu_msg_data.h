@@ -177,6 +177,11 @@ typedef struct {
 } wlan_emu_emu80211_ctrl_t;
 
 typedef struct {
+	unsigned int phy_index;
+	int rssi;
+} heart_beat_data_t;
+
+typedef struct {
 	int fd;
 } wlan_emu_emu80211_close_t;
 

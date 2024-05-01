@@ -147,16 +147,26 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 
 	switch (data->u.emu80211.u.cmd.type) {
 		case wlan_emu_emu80211_cmd_radiotap:
+			heart_beat_data_t heart_beat_data;
 			buff_length = data->u.emu80211.u.cmd.buff_len;
 			cmd_buffer = kmalloc(sizeof(data->u.emu80211.u.cmd.cmd_buffer), GFP_KERNEL);
+			if (cmd_buffer == NULL) {
+				return;
+			}
 			memcpy(cmd_buffer, data->u.emu80211.u.cmd.cmd_buffer, sizeof(data->u.emu80211.u.cmd.cmd_buffer));
 
-			printk("%s:%d buff_length : %d\n", __func__, __LINE__, buff_length);
+			memcpy(&heart_beat_data.phy_index, &cmd_buffer[count], sizeof(heart_beat_data.phy_index));
+			count += sizeof(heart_beat_data.phy_index);
+
+			memcpy(&heart_beat_data.rssi, &cmd_buffer[count], sizeof(heart_beat_data.rssi));
+			count += sizeof(heart_beat_data.rssi);
+
+			printk("%s:%d rssi : %d for phy_index ; %d\n", __func__, __LINE__, heart_beat_data.rssi, heart_beat_data.phy_index);
 
 			for (count = 0; count < buff_length; count++ ) {
 				printk(" %02X", cmd_buffer[count]);
 			}
-
+			update_heartbeat_data(&heart_beat_data);
 			kfree(cmd_buffer);
 		break;
 		default:
@@ -721,7 +731,7 @@ static int rdkfmac_open(struct inode *inode, struct file *file)
 {
 
 	g_char_device.num_inst++;
-		printk(KERN_INFO "%s:%d Opened Instances: %d\n", __func__, __LINE__, g_char_device.num_inst);
+	printk(KERN_INFO "%s:%d Opened Instances: %d\n", __func__, __LINE__, g_char_device.num_inst);
 
 	return 0;
 }

@@ -386,6 +386,7 @@ struct mac80211_rdkfmac_data {
 
 	uintptr_t pending_cookie;
 	struct sk_buff_head pending;	/* packets pending */
+	heart_beat_data_t *heart_beat_data;
 	/*
 	 * Only radios in the same group can communicate together (the
 	 * channel has to match too). Each bit represents a group. A
@@ -3157,5 +3158,6 @@ void ieee80211_destroy_frag_cache(struct ieee80211_fragment_cache *cache);
 
 struct ieee80211_hw *rdkfmac_alloc_hw(size_t priv_data_len,
 						const struct ieee80211_ops *ops);
+int update_heartbeat_data(heart_beat_data_t *heart_beat_data);
 
 #endif // RDKFMAC_H
