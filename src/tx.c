@@ -1810,13 +1810,15 @@ static int invoke_tx_handlers_late(struct ieee80211_tx_data *tx)
  * Returns false if the frame couldn't be transmitted but was queued instead.
  */
 
-int send_data_frame(void *buff, uint32_t frame_size)
+int send_data_frame(void *buff, uint32_t frame_size, struct ieee80211_hw *hw)
 {
 	unsigned char *data;
 	struct sk_buff* skb = NULL;
 	struct net_device *dev;
 	struct ethhdr* eth;
 	uint8_t mac_addr[ETH_ALEN] = {0xe8, 0xd8, 0xd1, 0x33, 0xbb, 0x46};
+	static int rssi;
+	struct mac80211_rdkfmac_data *rdkfmac_data = hw->priv;
 
 	dev = dev_get_by_name(&init_net,"brlan0");
 	if (dev == NULL ) {
@@ -1831,10 +1833,13 @@ int send_data_frame(void *buff, uint32_t frame_size)
 	return 1;
 	}
 
+	rssi = rdkfmac_data->heart_beat_data != NULL ? rdkfmac_data->heart_beat_data->rssi : 0xae;
+
 	skb_reserve(skb, ETH_HLEN);
 
 	data = skb_put(skb, frame_size + sizeof(u8aRadiotapHeader));
 	memcpy(data, u8aRadiotapHeader, sizeof(u8aRadiotapHeader));
+	memcpy(data + 15, &rssi, 1);
 	memcpy(data + sizeof(u8aRadiotapHeader), buff, frame_size);
 
 	eth = (struct ethhdr*)skb_push(skb, sizeof (struct ethhdr));
@@ -1892,7 +1897,7 @@ static bool ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 	hdr = (void *)tx.skb->data;
 	if (ieee80211_is_data_qos(hdr->frame_control) &&
 		!ieee80211_is_qos_nullfunc(hdr->frame_control)) {
-		send_data_frame(skb->data, skb->len);
+		send_data_frame(skb->data, skb->len, &local->hw);
 	}
 
 	if (ieee80211_queue_skb(local, sdata, tx.sta, tx.skb))

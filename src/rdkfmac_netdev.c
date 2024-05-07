@@ -839,6 +839,7 @@ static netdev_tx_t hwsim_mon_xmit(struct sk_buff *skb,
 {
 		struct ethhdr *eth_hdr;
 	struct mac80211_rdkfmac_data *nic;
+	u32 freq = 2462;
 
 		eth_hdr = (struct ethhdr *)skb_mac_header(skb);
 
@@ -849,43 +850,11 @@ static netdev_tx_t hwsim_mon_xmit(struct sk_buff *skb,
 
 	// EAPOL frame 88 8e
 	if (ntohs(eth_hdr->h_proto) != 34958) {
+		memcpy(&freq, skb->data + 10, sizeof(freq));
 		skb_pull(skb, ieee80211_get_radiotap_len(skb->data));
 	}
 
 	skb_orphan(skb);
-
-	//XXX should be taken from radio header
-	const u8 *tmp;
-	u32 freq = 2462;
-	int channel_number = -1;
-	struct ieee80211_mgmt *mgmt;
-	size_t ielen = skb->len - offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
-
-	mgmt = (struct ieee80211_mgmt *)skb->data;
-	tmp = cfg80211_find_ie(WLAN_EID_DS_PARAMS, mgmt->u.beacon.variable, ielen);
-
-	if (tmp && tmp[1] == 1) {
-		channel_number = tmp[2];
-	} else {
-		tmp = cfg80211_find_ie(WLAN_EID_HT_OPERATION, mgmt->u.beacon.variable, ielen);
-		if (tmp && tmp[1] >= sizeof(struct ieee80211_ht_operation)) {
-			struct ieee80211_ht_operation *htop = (void *)(tmp + 2);
-
-			channel_number = htop->primary_chan;
-		}
-	}
-
-	if (channel_number > 0) {
-		if (channel_number== 14)
-			freq = 2484;
-		else if (channel_number< 14)
-			freq = 2407 + channel_number* 5;
-		else if (channel_number>= 182 && channel_number<= 196)
-			freq = 4000 + channel_number* 5;
-		else
-			freq = 5000 + channel_number* 5;
-	}
-
 	spin_lock(&hwsim_radio_lock);
 	list_for_each_entry(nic, &hwsim_radios, list) {
 		struct sk_buff *nskb;
@@ -1451,13 +1420,14 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	return ack;
 }
 
-int send_eth_frame(void *frame, uint32_t frame_size)
+int send_eth_frame(void *frame, uint32_t frame_size, struct mac80211_rdkfmac_data *rdkfmac_data)
 {
 	unsigned char *data;
 	struct sk_buff* skb = NULL;
 	struct net_device *dev;
 	struct ethhdr* eth;
 	uint8_t mac_addr[ETH_ALEN] = {0xe8, 0xd8, 0xd1, 0x33, 0xbb, 0x46};
+	int rssi;
 
 	dev = dev_get_by_name(&init_net,"brlan0");
 	if (dev == NULL ) {
@@ -1474,9 +1444,11 @@ int send_eth_frame(void *frame, uint32_t frame_size)
 
 	skb_reserve(skb, ETH_HLEN);
 
+	rssi = rdkfmac_data->heart_beat_data != NULL ? rdkfmac_data->heart_beat_data->rssi : 0xae;
 
 	data = skb_put(skb, frame_size + sizeof(u8aRadiotapHeader));
 	memcpy(data, u8aRadiotapHeader, sizeof(u8aRadiotapHeader));
+	memcpy(data + 15, &rssi, 1);
 	memcpy(data + sizeof(u8aRadiotapHeader), frame, frame_size);
 
 	eth = (struct ethhdr*)skb_push(skb, sizeof (struct ethhdr));
@@ -1513,7 +1485,7 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 		ieee80211_is_assoc_req(hdr->frame_control) || ieee80211_is_deauth(hdr->frame_control)
 		|| ieee80211_is_disassoc(hdr->frame_control))
 	{
-		send_eth_frame(skb->data, skb->len);
+		send_eth_frame(skb->data, skb->len, data);
 		if (!(ieee80211_is_auth(hdr->frame_control))) {
 			//push_frame_to_char_dev(skb->data, skb->len);
 		}
