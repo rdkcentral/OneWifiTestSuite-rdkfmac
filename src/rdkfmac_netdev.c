@@ -166,6 +166,8 @@ struct hwsim_vif_priv {
 	u16 aid;
 };
 
+static struct mac80211_rdkfmac_data *get_hwsim_data_ref_from_addr(const u8 *addr);
+
 #define HWSIM_VIF_MAGIC	0x69537748
 
 static inline void hwsim_check_magic(struct ieee80211_vif *vif)
@@ -2919,7 +2921,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	addr[4] = idx;
 	memcpy(data->addresses[0].addr, addr, ETH_ALEN);
 	memcpy(data->addresses[1].addr, addr, ETH_ALEN);
-	data->addresses[1].addr[0] |= 0x40;
+	//data->addresses[1].addr[0] |= 0x40;
 	hw->wiphy->n_addresses = 2;
 	hw->wiphy->addresses = data->addresses;
 
@@ -3233,40 +3235,77 @@ static void mac80211_hwsim_del_radio(struct mac80211_rdkfmac_data *data,
 
 int update_heartbeat_data(heart_beat_data_t *heart_beat_data)
 {
-	bool phy_index_present = false;
-	struct mac80211_rdkfmac_data *data = NULL;
+	struct mac80211_rdkfmac_data *data2;
 	if (heart_beat_data == NULL) {
-		printk("%s input arguement is NULL\n", __func__);
+		printk("%s:%d input arguement is NULL\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 
-	spin_lock_bh(&hwsim_radio_lock);
-	list_for_each_entry(data, &hwsim_radios, list) {
-		if (heart_beat_data->phy_index >= 0) {
-			if (data->idx == heart_beat_data->phy_index) {
-				phy_index_present = true;
-			} else {
-				continue;
-			}
-
-			if (phy_index_present == true) {
-				if (data->heart_beat_data == NULL) {
-					data->heart_beat_data = kmalloc(sizeof(heart_beat_data_t), GFP_KERNEL);
-					if (data->heart_beat_data == NULL) {
-						printk("%s heart beat data allocation failed\n", __func__);
-						spin_unlock_bh(&hwsim_radio_lock);
-						return -ENOMEM;
-					}
-				}
-				memcpy(data->heart_beat_data, heart_beat_data, sizeof(heart_beat_data_t));
-				printk("%s heart beat for phy : %d rssi : %d\n", __func__, data->heart_beat_data->phy_index, data->heart_beat_data->rssi);
-				spin_unlock_bh(&hwsim_radio_lock);
-				return 0;
+	data2 = get_hwsim_data_ref_from_addr(heart_beat_data->mac);
+	if (data2) {
+		if (data2->heart_beat_data == NULL) {
+			data2->heart_beat_data = kmalloc(sizeof(heart_beat_data_t), GFP_KERNEL);
+			if (data2->heart_beat_data == NULL) {
+				printk("%s:%d heart beat data allocation failed for %pM \n", __func__, __LINE__, heart_beat_data->mac);
+				return -ENOMEM;
 			}
 		}
+		mutex_lock(&data2->mutex);
+		memcpy(data2->heart_beat_data, heart_beat_data, sizeof(heart_beat_data_t));
+		mutex_unlock(&data2->mutex);
+		printk("%s:%d heart beat done for %pM\n", __func__, __LINE__, heart_beat_data->mac);
+		return 0;
 	}
-	printk("%s heart beat failed\n", __func__);
-	spin_unlock_bh(&hwsim_radio_lock);
+	printk("%s:%d heart beat failed for %pM \n", __func__, __LINE__, heart_beat_data->mac);
+	return EINVAL;
+}
+
+
+int update_sta_new_mac(mac_update_t *mac_update)
+{
+	struct mac80211_rdkfmac_data *data2;
+	int err;
+/* //Can be used for debugging
+	struct mac80211_rdkfmac_data *data;
+	struct rhashtable_iter iter;
+
+	rhashtable_walk_enter(&hwsim_radios_rht, &iter);
+	rhashtable_walk_start(&iter);
+	while ((data = rhashtable_walk_next(&iter)) != NULL) {
+		if (IS_ERR(data)) {
+			printk("%s continue \n", __func__);
+			continue;
+		}
+		printk("%s:%d MAC for addr[0]  ; %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n", __func__, __LINE__,
+				data->addresses[0].addr[0], data->addresses[0].addr[1], data->addresses[0].addr[2],
+				data->addresses[0].addr[3], data->addresses[0].addr[4], data->addresses[0].addr[5]);
+		printk("%s:%d MAC for addr[1]  ; %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n", __func__, __LINE__,
+				data->addresses[1].addr[0], data->addresses[1].addr[1], data->addresses[1].addr[2],
+				data->addresses[1].addr[3], data->addresses[1].addr[4], data->addresses[1].addr[5]);
+	}
+	rhashtable_walk_stop(&iter);
+	rhashtable_walk_exit(&iter);
+*/
+	if (mac_update == NULL) {
+		printk("%s input arguement is NULL\n", __func__);
+		return -EINVAL;
+	}
+	data2 = get_hwsim_data_ref_from_addr(mac_update->old_mac);
+	if (data2) {
+		spin_lock_bh(&hwsim_radio_lock);
+		rhashtable_remove_fast(&hwsim_radios_rht, &data2->rht, hwsim_rht_params);
+		memcpy(data2->addresses[0].addr, mac_update->new_mac, sizeof(mac_update->new_mac));
+		memcpy(data2->addresses[1].addr, mac_update->new_mac, sizeof(mac_update->new_mac));
+		err = rhashtable_insert_fast(&hwsim_radios_rht, &data2->rht, hwsim_rht_params);
+		if (err < 0) {
+			printk("%s:%d insert failed for mac : %pM \n", __func__, __LINE__, mac_update->new_mac);
+		}
+		spin_unlock_bh(&hwsim_radio_lock);
+
+		return 0;
+	}
+
+	printk("%s:%d new mac update failed for old_mac : %pM \n", __func__, __LINE__, mac_update->old_mac);
 	return EINVAL;
 }
 

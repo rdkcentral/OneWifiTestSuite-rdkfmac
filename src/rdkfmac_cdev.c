@@ -155,13 +155,13 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 			}
 			memcpy(cmd_buffer, data->u.emu80211.u.cmd.cmd_buffer, sizeof(data->u.emu80211.u.cmd.cmd_buffer));
 
-			memcpy(&heart_beat_data.phy_index, &cmd_buffer[count], sizeof(heart_beat_data.phy_index));
-			count += sizeof(heart_beat_data.phy_index);
+			memcpy(&heart_beat_data.mac, &cmd_buffer[count], sizeof(heart_beat_data.mac));
+			count += sizeof(heart_beat_data.mac);
 
 			memcpy(&heart_beat_data.rssi, &cmd_buffer[count], sizeof(heart_beat_data.rssi));
 			count += sizeof(heart_beat_data.rssi);
 
-			printk("%s:%d rssi : %d for phy_index ; %d\n", __func__, __LINE__, heart_beat_data.rssi, heart_beat_data.phy_index);
+			printk("%s:%d rssi : %d for MAC : %pM\n", __func__, __LINE__, heart_beat_data.rssi, heart_beat_data.mac);
 
 			for (count = 0; count < buff_length; count++ ) {
 				printk(" %02X", cmd_buffer[count]);
@@ -169,8 +169,26 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 			update_heartbeat_data(&heart_beat_data);
 			kfree(cmd_buffer);
 		break;
+		case wlan_emu_emu80211_cmd_mac_update:
+			mac_update_t mac_update;
+			buff_length = data->u.emu80211.u.cmd.buff_len;
+			cmd_buffer = kmalloc(sizeof(data->u.emu80211.u.cmd.cmd_buffer), GFP_KERNEL);
+			if (cmd_buffer == NULL) {
+				return;
+			}
+			memcpy(cmd_buffer, data->u.emu80211.u.cmd.cmd_buffer, sizeof(data->u.emu80211.u.cmd.cmd_buffer));
+			memcpy(&mac_update.old_mac, &cmd_buffer[count], sizeof(mac_update.old_mac));
+			count += sizeof(mac_update.old_mac);
+			memcpy(&mac_update.new_mac, &cmd_buffer[count], sizeof(mac_update.new_mac));
+			count += sizeof(mac_update.new_mac);
+			for (count = 0; count < buff_length; count++ ) {
+				printk(" %02X", cmd_buffer[count]);
+			}
+			update_sta_new_mac(&mac_update);
+			kfree(cmd_buffer);
+		break;
 		default:
-			break;
+		break;
 	}
 	return;
 
