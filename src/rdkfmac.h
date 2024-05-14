@@ -63,23 +63,27 @@ struct ieee80211_local;
 
 static const uint8_t u8aRadiotapHeader[] = {
 
-0x00, 0x00, // version
-0x18, 0x00, // size
+	0x00, 0x00, // version + pad
+	0x12, 0x00, // size
 
-/*
-	* The full list of which field is which option is in ieee80211_radiotap.h,
-	*/
-0x0f, 0x80, 0x00, 0x00, // preset flags
+	/*
+	 * The full list of which field is which option is in ieee80211_radiotap.h,
+	 */
+	0x2e, 0x48, 0x00, 0x00, // preset flags
 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //timestamp
+	0x00, // flags
 
-0x10, // flags, IEEE80211_RADIOTAP_F_FCS set
+	0x00, // data rate
 
-0x00, // rate
+	0x00, 0x00, // channel
 
-0x00, 0x00, 0x00, 0x00, // channel
+	0x00, 0x00, // chan flags
 
-0x08, 0x00, // chan flags, IEEE80211_RADIOTAP_F_TX_NOACK set
+	0x00, // signal
+
+	0x01, // antena
+
+	0x00, 0x00, //rx flags
 };
 
 enum rdkfmac_hw_capab {
