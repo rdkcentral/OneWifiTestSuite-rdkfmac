@@ -181,6 +181,8 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 			count += sizeof(mac_update.old_mac);
 			memcpy(&mac_update.new_mac, &cmd_buffer[count], sizeof(mac_update.new_mac));
 			count += sizeof(mac_update.new_mac);
+			memcpy(&mac_update.bridge_name, &cmd_buffer[count], sizeof(mac_update.bridge_name));
+			count += sizeof(mac_update.bridge_name);
 			for (count = 0; count < buff_length; count++ ) {
 				printk(" %02X", cmd_buffer[count]);
 			}

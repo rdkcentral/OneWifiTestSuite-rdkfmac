@@ -1431,7 +1431,7 @@ int send_eth_frame(void *frame, uint32_t frame_size, struct mac80211_rdkfmac_dat
 	uint8_t mac_addr[ETH_ALEN] = {0xe8, 0xd8, 0xd1, 0x33, 0xbb, 0x46};
 	int rssi;
 
-	dev = dev_get_by_name(&init_net,"brlan0");
+	dev = dev_get_by_name(&init_net, rdkfmac_data->bridge_name);
 	if (dev == NULL ) {
 	printk("no such device eth0\n");
 	return 1;
@@ -3296,10 +3296,12 @@ int update_sta_new_mac(mac_update_t *mac_update)
 		rhashtable_remove_fast(&hwsim_radios_rht, &data2->rht, hwsim_rht_params);
 		memcpy(data2->addresses[0].addr, mac_update->new_mac, sizeof(mac_update->new_mac));
 		memcpy(data2->addresses[1].addr, mac_update->new_mac, sizeof(mac_update->new_mac));
+		memcpy(data2->bridge_name, mac_update->bridge_name, sizeof(mac_update->bridge_name));
 		err = rhashtable_insert_fast(&hwsim_radios_rht, &data2->rht, hwsim_rht_params);
 		if (err < 0) {
 			printk("%s:%d insert failed for mac : %pM \n", __func__, __LINE__, mac_update->new_mac);
 		}
+		printk("%s:%d new mac update : %pM with bridge:%s\n", __func__, __LINE__, mac_update->new_mac, data2->bridge_name);
 		spin_unlock_bh(&hwsim_radio_lock);
 
 		return 0;

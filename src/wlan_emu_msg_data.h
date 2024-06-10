@@ -185,6 +185,7 @@ typedef struct {
 typedef struct {
 	mac_address_t old_mac;
 	mac_address_t new_mac;
+	char bridge_name[32];
 } mac_update_t;
 
 typedef struct {

@@ -416,6 +416,7 @@ struct mac80211_rdkfmac_data {
 	u64 rx_bytes;
 	u64 tx_dropped;
 	u64 tx_failed;
+	char bridge_name[32];
 };
 
 

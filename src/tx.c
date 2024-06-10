@@ -1820,7 +1820,7 @@ int send_data_frame(void *buff, uint32_t frame_size, struct ieee80211_hw *hw)
 	static int rssi;
 	struct mac80211_rdkfmac_data *rdkfmac_data = hw->priv;
 
-	dev = dev_get_by_name(&init_net,"brlan0");
+	dev = dev_get_by_name(&init_net, rdkfmac_data->bridge_name);
 	if (dev == NULL ) {
 	printk("no such device eth0\n");
 	return 1;
