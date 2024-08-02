@@ -769,23 +769,6 @@ static void handle_frame_assoc_resp(struct ieee80211_mgmt *assoc_resp, unsigned 
 	return;
 }
 
-#define WLAN_FC_STYPE_ASSOC_REQ	 0
-#define WLAN_FC_STYPE_ASSOC_RESP	1
-#define WLAN_FC_STYPE_REASSOC_REQ	2
-#define WLAN_FC_STYPE_REASSOC_RESP3
-#define WLAN_FC_STYPE_PROBE_REQ	 4
-#define WLAN_FC_STYPE_PROBE_RESP	5
-#define WLAN_FC_STYPE_BEACON		8
-#define WLAN_FC_STYPE_ATIM	9
-#define WLAN_FC_STYPE_DISASSOC	10
-#define WLAN_FC_STYPE_AUTH	11
-#define WLAN_FC_STYPE_DEAUTH		12
-#define WLAN_FC_STYPE_ACTION		13
-#define WLAN_FC_STYPE_ACTION_NO_ACK 14
-
-#define WLAN_FC_GET_TYPE(fc)	(((fc) & 0x000c) >> 2)
-#define WLAN_FC_GET_STYPE(fc)	(((fc) & 0x00f0) >> 4)
-
 static void push_frame_to_char_dev(void *data, unsigned int len)
 {
 	if (data == NULL) {

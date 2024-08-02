@@ -121,8 +121,10 @@ void push_to_char_device(wlan_emu_msg_data_t *data)
 			break;
 	}
 
-	printk("%s:%d: pushing data to queue, type: %s ops: %s current size: %d\n", __func__, __LINE__,
-		str_spec_type, str_ops, get_list_entries_count_in_char_device());
+	if ((spec->type != wlan_emu_msg_type_webconfig) && (spec->type != wlan_emu_msg_type_frm80211)) {
+		printk("%s:%d: pushing data to queue, type: %s ops: %s current size: %d\n", __func__, __LINE__,
+			str_spec_type, str_ops, get_list_entries_count_in_char_device());
+	}
 	list_add(&entry->list_entry, g_char_device.list_tail);
 	g_char_device.list_tail = &entry->list_entry;
 
@@ -162,10 +164,11 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 			count += sizeof(heart_beat_data.rssi);
 
 			printk("%s:%d rssi : %d for MAC : %pM\n", __func__, __LINE__, heart_beat_data.rssi, heart_beat_data.mac);
-
+/*
 			for (count = 0; count < buff_length; count++ ) {
 				printk(" %02X", cmd_buffer[count]);
 			}
+*/
 			update_heartbeat_data(&heart_beat_data);
 			kfree(cmd_buffer);
 		break;
@@ -183,9 +186,11 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 			count += sizeof(mac_update.new_mac);
 			memcpy(&mac_update.bridge_name, &cmd_buffer[count], sizeof(mac_update.bridge_name));
 			count += sizeof(mac_update.bridge_name);
+/*
 			for (count = 0; count < buff_length; count++ ) {
 				printk(" %02X", cmd_buffer[count]);
 			}
+*/
 			update_sta_new_mac(&mac_update);
 			kfree(cmd_buffer);
 		break;
@@ -220,44 +225,127 @@ static void handle_emu80211_msg_w(wlan_emu_msg_data_t *spec) {
 }
 
 static void handle_frm80211_msg_w(char *read_buff, size_t size) {
-	wlan_emu_msg_data_t *add_probe_req_msg;
+	wlan_emu_msg_data_t *frm80211_msg;
+	struct ieee80211_hdr *hdr;
+	unsigned int msg_ops_type = 0;
+	unsigned short fc, type, stype;
+	const unsigned char rfc1042_hdr[ETH_ALEN] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
+	unsigned char *tmp_frame_buf;
+	unsigned int data_header_len = 0;
 
-	add_probe_req_msg = kzalloc(sizeof(wlan_emu_msg_data_t), GFP_KERNEL);
-	if (add_probe_req_msg == NULL) {
+	frm80211_msg = kzalloc(sizeof(wlan_emu_msg_data_t), GFP_KERNEL);
+	if (frm80211_msg == NULL) {
 		printk("%s:%d NULL Pointer\n", __func__, __LINE__);
 		return;
 	}
 
-	memcpy(&add_probe_req_msg->type, read_buff, sizeof(wlan_emu_msg_type_t));
+	memcpy(&frm80211_msg->type, read_buff, sizeof(wlan_emu_msg_type_t));
 	read_buff += sizeof(wlan_emu_msg_type_t);
 
-	if (add_probe_req_msg->type != wlan_emu_msg_type_frm80211) {
+	if (frm80211_msg->type != wlan_emu_msg_type_frm80211) {
 		printk("%s:%d Invalid type\n", __func__, __LINE__);
+		kfree(frm80211_msg);
 		return;
 	}
 
-	memcpy(&add_probe_req_msg->u.frm80211.ops, read_buff, sizeof(wlan_emu_cfg80211_ops_type_t));
+//writing dummy value == 0
+	memcpy(&frm80211_msg->u.frm80211.ops, &msg_ops_type, sizeof(wlan_emu_cfg80211_ops_type_t));
 	read_buff += sizeof(wlan_emu_cfg80211_ops_type_t);
 
-	memcpy(&add_probe_req_msg->u.frm80211.u.frame.frame_len, read_buff, sizeof(unsigned int));
+	memcpy(&frm80211_msg->u.frm80211.u.frame.frame_len, read_buff, sizeof(unsigned int));
 	read_buff += sizeof(unsigned int);
 
-	memcpy(&add_probe_req_msg->u.frm80211.u.frame.macaddr, read_buff, ETH_ALEN);
+	memcpy(&frm80211_msg->u.frm80211.u.frame.macaddr, read_buff, ETH_ALEN);
 	read_buff += ETH_ALEN;
 
-	memcpy(&add_probe_req_msg->u.frm80211.u.frame.client_macaddr, read_buff, ETH_ALEN);
+	memcpy(&frm80211_msg->u.frm80211.u.frame.client_macaddr, read_buff, ETH_ALEN);
 	read_buff += ETH_ALEN;
 
-	add_probe_req_msg->u.frm80211.u.frame.frame = kzalloc(add_probe_req_msg->u.frm80211.u.frame.frame_len, GFP_KERNEL);
-	if (add_probe_req_msg->u.frm80211.u.frame.frame == NULL) {
+	frm80211_msg->u.frm80211.u.frame.frame = kzalloc(frm80211_msg->u.frm80211.u.frame.frame_len, GFP_KERNEL);
+	if (frm80211_msg->u.frm80211.u.frame.frame == NULL) {
 		printk("%s:%d NULL Pointer\n", __func__, __LINE__);
+		kfree(frm80211_msg);
 		return;
 	}
 
-	memcpy(add_probe_req_msg->u.frm80211.u.frame.frame, read_buff, add_probe_req_msg->u.frm80211.u.frame.frame_len);
-	read_buff += add_probe_req_msg->u.frm80211.u.frame.frame_len;
+	memcpy(frm80211_msg->u.frm80211.u.frame.frame, read_buff, frm80211_msg->u.frm80211.u.frame.frame_len);
+	read_buff += frm80211_msg->u.frm80211.u.frame.frame_len;
 
-	push_to_char_device(add_probe_req_msg);
+	hdr = (struct ieee80211_hdr *)frm80211_msg->u.frm80211.u.frame.frame;
+	fc = le16_to_cpu(hdr->frame_control);
+	type = WLAN_FC_GET_TYPE(fc);
+
+	if (type == WLAN_FC_TYPE_MGMT) {
+		stype = WLAN_FC_GET_STYPE(fc);
+		switch (stype) {
+			case WLAN_FC_STYPE_PROBE_REQ:
+				msg_ops_type = wlan_emu_frm80211_ops_type_prb_req;
+				break;
+			case WLAN_FC_STYPE_PROBE_RESP:
+				msg_ops_type = wlan_emu_frm80211_ops_type_prb_resp;
+				break;
+			case WLAN_FC_STYPE_ASSOC_REQ:
+				msg_ops_type = wlan_emu_frm80211_ops_type_assoc_req;
+				break;
+			case WLAN_FC_STYPE_ASSOC_RESP:
+				msg_ops_type = wlan_emu_frm80211_ops_type_assoc_resp;
+				break;
+			case WLAN_FC_STYPE_AUTH:
+				msg_ops_type = wlan_emu_frm80211_ops_type_auth;
+				break;
+			case WLAN_FC_STYPE_DEAUTH:
+				msg_ops_type = wlan_emu_frm80211_ops_type_deauth;
+				break;
+			case WLAN_FC_STYPE_DISASSOC:
+				msg_ops_type = wlan_emu_frm80211_ops_type_disassoc;
+				break;
+			case WLAN_FC_STYPE_ACTION:
+				msg_ops_type = wlan_emu_frm80211_ops_type_action;
+				break;
+			case WLAN_FC_STYPE_REASSOC_REQ:
+				msg_ops_type = wlan_emu_frm80211_ops_type_reassoc_req;
+				break;
+			case WLAN_FC_STYPE_REASSOC_RESP:
+				msg_ops_type = wlan_emu_frm80211_ops_type_reassoc_resp;
+				break;
+			default:
+				printk("%s:%d Invalid fc type : %d\n", __func__, __LINE__, stype);
+				kfree(frm80211_msg->u.frm80211.u.frame.frame);
+				kfree(frm80211_msg);
+				return;
+		}
+	} else if (type == WLAN_FC_TYPE_DATA) {
+		data_header_len = ieee80211_hdrlen(hdr->frame_control);
+		if (frm80211_msg->u.frm80211.u.frame.frame_len < data_header_len + sizeof(rfc1042_hdr) + 2) {
+			kfree(frm80211_msg->u.frm80211.u.frame.frame);
+			kfree(frm80211_msg);
+			return;
+		}
+
+		tmp_frame_buf =  (unsigned char *)frm80211_msg->u.frm80211.u.frame.frame;
+		tmp_frame_buf += data_header_len;
+
+		if (memcmp(tmp_frame_buf, rfc1042_hdr, sizeof(rfc1042_hdr)) != 0) {
+			kfree(frm80211_msg->u.frm80211.u.frame.frame);
+			kfree(frm80211_msg);
+			return;
+		}
+
+		tmp_frame_buf += sizeof(rfc1042_hdr);
+		if (((tmp_frame_buf[0] << 8) | tmp_frame_buf[1]) != ETH_P_PAE) {
+			kfree(frm80211_msg->u.frm80211.u.frame.frame);
+			kfree(frm80211_msg);
+			return;
+		} else {
+			msg_ops_type = wlan_emu_frm80211_ops_type_eapol;
+		}
+	}
+
+	//updating the final correct value
+	memcpy(&frm80211_msg->u.frm80211.ops, &msg_ops_type, sizeof(wlan_emu_cfg80211_ops_type_t));
+
+	push_to_char_device(frm80211_msg);
+	kfree(frm80211_msg);
 	return;
 }
 
@@ -700,6 +788,9 @@ static void handle_frm80211_msg(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s_t
 		case wlan_emu_frm80211_ops_type_deauth:
 		case wlan_emu_frm80211_ops_type_disassoc:
 		case wlan_emu_frm80211_ops_type_eapol:
+		case wlan_emu_frm80211_ops_type_reassoc_req:
+		case wlan_emu_frm80211_ops_type_reassoc_resp:
+		case wlan_emu_frm80211_ops_type_action:
 			handle_frame(spec, len, s_tmp);
 			break;
 		default:
@@ -742,6 +833,12 @@ static ssize_t rdkfmac_read(struct file *file, char __user *user_buffer,
 	}
 
 	copy_to_user(user_buffer, &send_buff, return_len);
+
+	if (spec->type == wlan_emu_msg_type_frm80211) {
+		kfree(spec->u.frm80211.u.frame.frame);
+	}
+
+
 	kfree(spec);
 
 	return return_len;

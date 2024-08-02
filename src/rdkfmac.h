@@ -58,8 +58,30 @@ struct ieee80211_local;
 #define RDKFMAC_WDOG_TIMEOUT	5
 #define RDKFMAC_PRIMARY_VIF_IDX	0
 #define RDKFMAC_MAX_MAC			3
-#define RDKFMAC_MAX_INTF		8		
+#define RDKFMAC_MAX_INTF		8
 #define RDKFMAC_MAX_VSIE_LEN		255
+
+
+#define WLAN_FC_TYPE_MGMT       0
+#define WLAN_FC_TYPE_CTRL       1
+#define WLAN_FC_TYPE_DATA       2
+
+#define WLAN_FC_STYPE_ASSOC_REQ      0
+#define WLAN_FC_STYPE_ASSOC_RESP     1
+#define WLAN_FC_STYPE_REASSOC_REQ    2
+#define WLAN_FC_STYPE_REASSOC_RESP   3
+#define WLAN_FC_STYPE_PROBE_REQ      4
+#define WLAN_FC_STYPE_PROBE_RESP     5
+#define WLAN_FC_STYPE_BEACON         8
+#define WLAN_FC_STYPE_ATIM           9
+#define WLAN_FC_STYPE_DISASSOC      10
+#define WLAN_FC_STYPE_AUTH          11
+#define WLAN_FC_STYPE_DEAUTH        12
+#define WLAN_FC_STYPE_ACTION        13
+#define WLAN_FC_STYPE_ACTION_NO_ACK 14
+
+#define WLAN_FC_GET_TYPE(fc)    (((fc) & 0x000c) >> 2)
+#define WLAN_FC_GET_STYPE(fc)   (((fc) & 0x00f0) >> 4)
 
 static const uint8_t u8aRadiotapHeader[] = {
 

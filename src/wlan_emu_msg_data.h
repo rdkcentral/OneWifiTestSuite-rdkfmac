@@ -215,7 +215,10 @@ typedef enum {
 	wlan_emu_frm80211_ops_type_auth,
 	wlan_emu_frm80211_ops_type_deauth,
 	wlan_emu_frm80211_ops_type_disassoc,
-	wlan_emu_frm80211_ops_type_eapol
+	wlan_emu_frm80211_ops_type_eapol,
+	wlan_emu_frm80211_ops_type_reassoc_req,
+	wlan_emu_frm80211_ops_type_reassoc_resp, //Not implemented in hal
+	wlan_emu_frm80211_ops_type_action
 } wlan_emu_frm80211_ops_type_t;
 
 typedef enum {
