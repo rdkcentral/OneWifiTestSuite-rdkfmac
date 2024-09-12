@@ -439,9 +439,15 @@ struct mac80211_rdkfmac_data {
 	u64 tx_dropped;
 	u64 tx_failed;
 	char bridge_name[32];
+	char *assoc_req;
+	int assoc_req_len;
+	char *auth_req;
+	int auth_req_len;
 };
 
 
+int update_auth_req(char *frame, size_t frame_len);
+int update_assoc_req(char *frame, size_t frame_len);
 int init_rdkfmac_cdev(void);
 void cleanup_rdkfmac_cdev(void);
 void rdkfmac_bus_pseudo_init(rdkfmac_bus_t *bus);

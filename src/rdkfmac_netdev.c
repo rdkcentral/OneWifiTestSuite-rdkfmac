@@ -1405,6 +1405,69 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	return ack;
 }
 
+const struct element *get_tlv(const u8 *frame, size_t len, int tlv_id)
+{
+	const struct element *elem;
+	const u8 *pos;
+	u8 id;
+
+	for_each_element(elem, frame, len) {
+		id = elem->id;
+		pos = elem->data;
+		if (id == tlv_id) {
+			return elem;
+		}
+	}
+
+	return NULL;
+}
+
+int construct_assoc_request(const u8 *frame, size_t frame_size, u8 *buff, struct mac80211_rdkfmac_data *rdkfmac_data)
+{
+	struct ieee80211_mgmt *mgmt;
+	struct ieee80211_mgmt *t_mgmt;
+	const struct element *ssid_pos;
+	const struct element *rsn_pos;
+	const struct element *elem;
+	struct ieee80211_hdr_3addr *hdr;
+	u8 *pos;
+	size_t len = 0;
+
+	/* Find SSID and RSN */
+	mgmt = (struct ieee80211_mgmt *)frame;
+	pos = mgmt->u.assoc_req.variable;
+	ssid_pos = get_tlv(pos, frame_size, 0);
+	rsn_pos = get_tlv(pos, frame_size, 48);
+
+	/* Copy hostapd header */
+	hdr = (struct ieee80211_hdr_3addr *)frame;
+	memcpy(buff, hdr, sizeof(struct ieee80211_hdr_3addr));
+	len = len + sizeof(struct ieee80211_hdr_3addr);
+
+	t_mgmt = (struct ieee80211_mgmt *)rdkfmac_data->assoc_req;
+
+	memcpy(buff + len, &t_mgmt->u.assoc_req.capab_info, 2);
+	memcpy(buff + len + 2, &t_mgmt->u.assoc_req.listen_interval, 2);
+	len = len + 4;
+
+	/* Copy template frame but with our SSID and RSN info */
+	pos = t_mgmt->u.assoc_req.variable;
+	for_each_element(elem, pos, rdkfmac_data->assoc_req_len - sizeof(struct ieee80211_hdr_3addr)) {
+		if (elem->id == 0) {
+			memcpy(buff + len, ssid_pos, ssid_pos->datalen + 2);
+			len = len + ssid_pos->datalen + 2;
+		} else if (elem->id == 48) {
+			memcpy(buff + len, rsn_pos, rsn_pos->datalen + 2);
+			len = len + rsn_pos->datalen + 2;
+		} else {
+			memcpy(buff + len, elem, elem->datalen + 2);
+			len = len + elem->datalen + 2;
+		}
+	}
+
+	return len;
+}
+
 int send_eth_frame(void *frame, uint32_t frame_size, struct mac80211_rdkfmac_data *rdkfmac_data)
 {
 	unsigned char *data;
@@ -1413,18 +1476,47 @@ int send_eth_frame(void *frame, uint32_t frame_size, struct mac80211_rdkfmac_dat
 	struct ethhdr* eth;
 	uint8_t mac_addr[ETH_ALEN] = {0xe8, 0xd8, 0xd1, 0x33, 0xbb, 0x46};
 	int rssi;
+	u8 *pos;
+	struct ieee802_11_elems elems;
+	char *new_frame = NULL;
+	struct ieee80211_hdr_3addr *hdr; 
 
 	dev = dev_get_by_name(&init_net, rdkfmac_data->bridge_name);
 	if (dev == NULL ) {
-	printk("no such device eth0\n");
-	return 1;
+		printk("no such device eth0\n");
+		return 1;
 	}
 
+	hdr = (void *)frame;
+	if (ieee80211_is_auth(hdr->frame_control) && rdkfmac_data->auth_req) {
+		uint32_t new_frame_size; 
+
+		new_frame_size = rdkfmac_data->auth_req_len;
+		new_frame = kmalloc(new_frame_size, GFP_KERNEL);
+
+		memset(new_frame, 0, new_frame_size);
+		memcpy(new_frame, hdr, sizeof(struct ieee80211_hdr_3addr));
+
+		memcpy((new_frame + sizeof(struct ieee80211_hdr_3addr)),
+				(rdkfmac_data->auth_req + sizeof(struct ieee80211_hdr_3addr)),
+				(rdkfmac_data->auth_req_len - sizeof(struct ieee80211_hdr_3addr)));
+		frame = new_frame;
+		frame_size = new_frame_size;
+
+	} else if (ieee80211_is_assoc_req(hdr->frame_control) && rdkfmac_data->assoc_req) {
+		u8 buff[512];
+		uint32_t new_size;
+
+		memset(buff, 0, 512);
+		new_size = construct_assoc_request(frame, frame_size, buff, rdkfmac_data);
+		frame = buff;
+		frame_size = new_size;
+	}
 	skb = alloc_skb(ETH_HLEN + frame_size + sizeof(u8aRadiotapHeader), GFP_ATOMIC);
 
 	if (skb == NULL) {
-	printk("failed alloc skb\n");
-	return 1;
+		printk("failed alloc skb\n");
+		return 1;
 	}
 
 	skb_reserve(skb, ETH_HLEN);
@@ -1445,7 +1537,76 @@ int send_eth_frame(void *frame, uint32_t frame_size, struct mac80211_rdkfmac_dat
 
 	skb->dev = dev;
 	dev_queue_xmit(skb);
-	//netif_rx(skb);
+	
+	kfree(new_frame);
+
+	return 0;
+}
+
+int send_eth_frame_hook(void *frame, uint32_t frame_size, struct mac80211_rdkfmac_data *rdkfmac_data)
+{
+	unsigned char *data;
+	struct sk_buff* skb = NULL;
+	struct net_device *dev;
+	uint8_t mac_addr[ETH_ALEN] = {0xe8, 0xd8, 0xd1, 0x33, 0xbb, 0x46};
+	int rssi;
+	u8 *pos;
+	struct ieee802_11_elems elems;
+	char *new_frame = NULL;
+	struct ieee80211_hdr_3addr *hdr; 
+
+	dev = dev_get_by_name(&init_net, rdkfmac_data->bridge_name);
+	if (dev == NULL ) {
+		printk("no such device eth0\n");
+		return 1;
+	}
+
+	hdr = (void *)frame;
+	if (ieee80211_is_auth(hdr->frame_control) && rdkfmac_data->auth_req) {
+		uint32_t new_frame_size; 
+
+		new_frame_size = rdkfmac_data->auth_req_len;
+		new_frame = kmalloc(new_frame_size, GFP_KERNEL);
+
+		memset(new_frame, 0, new_frame_size);
+		memcpy(new_frame, hdr, sizeof(struct ieee80211_hdr_3addr));
+
+		memcpy((new_frame + sizeof(struct ieee80211_hdr_3addr)),
+				(rdkfmac_data->auth_req + sizeof(struct ieee80211_hdr_3addr)),
+				(rdkfmac_data->auth_req_len - sizeof(struct ieee80211_hdr_3addr)));
+		frame = new_frame;
+		frame_size = new_frame_size;
+
+	} else if (ieee80211_is_assoc_req(hdr->frame_control) && rdkfmac_data->assoc_req) {
+		u8 buff[512];
+		uint32_t new_size;
+
+		memset(buff, 0, 512);
+		new_size = construct_assoc_request(frame, frame_size, buff, rdkfmac_data);
+		frame = buff;
+		frame_size = new_size;
+
+
+		struct ieee80211_mgmt *t_mgmt = (struct ieee80211_mgmt *)frame;
+	}
+	skb = alloc_skb(frame_size + sizeof(u8aRadiotapHeader), GFP_ATOMIC);
+
+	if (skb == NULL) {
+		printk("failed alloc skb\n");
+		return 1;
+	}
+
+	rssi = rdkfmac_data->heart_beat_data != NULL ? rdkfmac_data->heart_beat_data->rssi : 0xae;
+
+	data = skb_put(skb, frame_size + sizeof(u8aRadiotapHeader));
+	memcpy(data, u8aRadiotapHeader, sizeof(u8aRadiotapHeader));
+	memcpy(data + 15, &rssi, 1);
+	memcpy(data + sizeof(u8aRadiotapHeader), frame, frame_size);
+
+	skb->dev = dev;
+	dev_queue_xmit(skb);
+	
+	kfree(new_frame);
 
 	return 0;
 }
@@ -1471,6 +1632,8 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 		|| ieee80211_is_disassoc(hdr->frame_control))
 	{
 		send_eth_frame(skb->data, skb->len, data);
+		send_eth_frame_hook(skb->data, skb->len, data);
+		
 		if (!(ieee80211_is_auth(hdr->frame_control))) {
 			//push_frame_to_char_dev(skb->data, skb->len);
 		}
@@ -3243,6 +3406,55 @@ int update_heartbeat_data(heart_beat_data_t *heart_beat_data)
 	return EINVAL;
 }
 
+int update_auth_req(char *frame, size_t frame_len)
+{
+	struct mac80211_rdkfmac_data *data2;
+	u8 addr[ETH_ALEN];
+
+	if ((frame == NULL) || (frame_len == 0))
+		return -1;
+
+	memcpy(addr, frame, ETH_ALEN);
+	data2 = get_hwsim_data_ref_from_addr(addr);
+	if (data2) {
+		if (data2->auth_req != NULL)
+			kfree(data2->auth_req);
+		data2->auth_req = kmalloc(frame_len - ETH_ALEN, GFP_KERNEL);
+		data2->auth_req_len = frame_len - ETH_ALEN;
+
+		if (data2 == NULL) {
+			printk("%s:%d updating auth_data failed\n", __func__, __LINE__);
+			return -ENOMEM;
+		}
+		memcpy(data2->auth_req, frame + ETH_ALEN, data2->auth_req_len);
+	}
+	return 0;
+}
+
+int update_assoc_req(char *frame, size_t frame_len)
+{
+	struct mac80211_rdkfmac_data *data2;
+	u8 addr[ETH_ALEN];
+
+	if ((frame == NULL) || (frame_len == 0))
+		return -1;
+
+	memcpy(addr, frame, ETH_ALEN);
+	data2 = get_hwsim_data_ref_from_addr(addr);
+	if (data2) {
+		if (data2->assoc_req != NULL)
+			kfree(data2->assoc_req);
+		data2->assoc_req = kmalloc(frame_len - ETH_ALEN, GFP_KERNEL);
+		data2->assoc_req_len = frame_len - ETH_ALEN;
+
+		if (data2 == NULL) {
+			printk("%s:%d updating assoc_data failed\n", __func__, __LINE__);
+			return -ENOMEM;
+		}
+		memcpy(data2->assoc_req, frame + ETH_ALEN, data2->assoc_req_len);
+	}
+	return 0;
+}
 
 int update_sta_new_mac(mac_update_t *mac_update)
 {
