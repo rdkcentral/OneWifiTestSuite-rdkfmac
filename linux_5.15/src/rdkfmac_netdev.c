@@ -2858,8 +2858,7 @@ out_err:
 static const struct ieee80211_sband_iftype_data he_capa_2ghz[] = {
 	{
 		/* TODO: should we support other types, e.g., P2P?*/
-		.types_mask = BIT(NL80211_IFTYPE_STATION) |
-			      BIT(NL80211_IFTYPE_AP),
+		.types_mask = BIT(NL80211_IFTYPE_STATION),
 		.he_cap = {
 			.has_he = true,
 			.he_cap_elem = {
@@ -2901,6 +2900,65 @@ static const struct ieee80211_sband_iftype_data he_capa_2ghz[] = {
 				.rx_mcs_80p80 = cpu_to_le16(0xffff),
 				.tx_mcs_80p80 = cpu_to_le16(0xffff),
 			},
+		},
+		.eht_cap = {
+			.has_eht = true,
+			.eht_cap_elem = {
+				.mac_cap_info[0] =
+					IEEE80211_EHT_MAC_CAP0_EPCS_PRIO_ACCESS |
+					IEEE80211_EHT_MAC_CAP0_OM_CONTROL |
+					IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE1,
+				.phy_cap_info[0] =
+					IEEE80211_EHT_PHY_CAP0_242_TONE_RU_GT20MHZ |
+					IEEE80211_EHT_PHY_CAP0_NDP_4_EHT_LFT_32_GI |
+					IEEE80211_EHT_PHY_CAP0_PARTIAL_BW_UL_MU_MIMO |
+					IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMER |
+					IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMEE,
+				.phy_cap_info[3] =
+					IEEE80211_EHT_PHY_CAP3_NG_16_SU_FEEDBACK |
+					IEEE80211_EHT_PHY_CAP3_NG_16_MU_FEEDBACK |
+					IEEE80211_EHT_PHY_CAP3_CODEBOOK_4_2_SU_FDBK |
+					IEEE80211_EHT_PHY_CAP3_CODEBOOK_7_5_MU_FDBK |
+					IEEE80211_EHT_PHY_CAP3_TRIG_SU_BF_FDBK |
+					IEEE80211_EHT_PHY_CAP3_TRIG_MU_BF_PART_BW_FDBK |
+					IEEE80211_EHT_PHY_CAP3_TRIG_CQI_FDBK,
+				.phy_cap_info[4] =
+					IEEE80211_EHT_PHY_CAP4_PART_BW_DL_MU_MIMO |
+					IEEE80211_EHT_PHY_CAP4_PSR_SR_SUPP |
+					IEEE80211_EHT_PHY_CAP4_POWER_BOOST_FACT_SUPP |
+					IEEE80211_EHT_PHY_CAP4_EHT_MU_PPDU_4_EHT_LTF_08_GI |
+					IEEE80211_EHT_PHY_CAP4_MAX_NC_MASK,
+				.phy_cap_info[5] =
+					IEEE80211_EHT_PHY_CAP5_NON_TRIG_CQI_FEEDBACK |
+					IEEE80211_EHT_PHY_CAP5_TX_LESS_242_TONE_RU_SUPP |
+					IEEE80211_EHT_PHY_CAP5_RX_LESS_242_TONE_RU_SUPP |
+					IEEE80211_EHT_PHY_CAP5_PPE_THRESHOLD_PRESENT |
+					IEEE80211_EHT_PHY_CAP5_COMMON_NOMINAL_PKT_PAD_MASK |
+					IEEE80211_EHT_PHY_CAP5_MAX_NUM_SUPP_EHT_LTF_MASK,
+				.phy_cap_info[6] =
+					IEEE80211_EHT_PHY_CAP6_MAX_NUM_SUPP_EHT_LTF_MASK |
+					IEEE80211_EHT_PHY_CAP6_MCS15_SUPP_MASK,
+				.phy_cap_info[7] =
+					IEEE80211_EHT_PHY_CAP7_20MHZ_STA_RX_NDP_WIDER_BW,
+			},
+			/* For all MCS and bandwidth, set 8 NSS for both Tx and
+			 * Rx
+			 */
+			.eht_mcs_nss_supp = {
+				/*
+				 * Since B0, B1, B2 and B3 are not set in
+				 * the supported channel width set field in the
+				 * HE PHY capabilities information field the
+				 * device is a 20MHz only device on 2.4GHz band.
+				 */
+				.only_20mhz = {
+					.rx_tx_mcs7_max_nss = 0x88,
+					.rx_tx_mcs9_max_nss = 0x88,
+					.rx_tx_mcs11_max_nss = 0x88,
+					.rx_tx_mcs13_max_nss = 0x88,
+				},
+			},
+			/* PPE threshold information is not supported */
 		},
 	},
 #ifdef CONFIG_MAC80211_MESH

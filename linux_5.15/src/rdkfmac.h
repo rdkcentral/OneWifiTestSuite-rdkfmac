@@ -1426,6 +1426,8 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_DISABLE_WMM	= BIT(14),
 	IEEE80211_STA_ENABLE_RRM	= BIT(15),
 	IEEE80211_STA_DISABLE_HE	= BIT(16),
+	IEEE80211_STA_DISABLE_EHT	= BIT(17),
+	IEEE80211_STA_DISABLE_320MHZ	= BIT(18),
 };
 
 struct ieee80211_mgd_auth_data {
@@ -3423,6 +3425,14 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 					  const u8 *ssid, size_t ssid_len,
 					  const u8 *ie, size_t ie_len,
 					  u32 flags);
+
+u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata, u8 iftype);
+u8 *ieee80211_ie_build_eht_cap(u8 *pos,
+			       const struct ieee80211_sta_he_cap *he_cap,
+			       const struct ieee80211_sta_eht_cap *eht_cap,
+			       u8 *end,
+			       bool for_ap);
+
 u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 			    struct ieee802_11_elems *elems,
 			    enum nl80211_band band, u32 *basic_rates);
