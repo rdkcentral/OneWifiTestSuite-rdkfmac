@@ -1573,7 +1573,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 	eht_cap = ieee80211_get_eht_iftype_cap(sband,
 					       ieee80211_vif_type_p2p(&sdata->vif));
 
-  pritnk("ADD EHT UTIL %d %d\n", eht_cap,cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
+  printk("ADD EHT UTIL %d %d\n", !!eht_cap, cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
 					 IEEE80211_CHAN_NO_HE |
 					 IEEE80211_CHAN_NO_EHT));
 
