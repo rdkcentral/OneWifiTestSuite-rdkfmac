@@ -70,7 +70,7 @@ MODULE_PARM_DESC(beacon_loss_count,
  * Time the connection can be idle before we probe
  * it to see if we can still talk to the AP.
  */
-#define IEEE80211_CONNECTION_IDLE_TIME	(30 * HZ)
+#define IEEE80211_CONNECTION_IDLE_TIME	(15 * HZ)
 /*
  * Time we wait for a probe response after sending
  * a probe request because of beacon loss or for
