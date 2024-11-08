@@ -47,6 +47,7 @@
 #include "rdkfmac_cmd.h"
 #include "rdkfmac_cfg80211.h"
 #include "wlan_emu_msg_data.h"
+#include <linux/printk.h>
 
 #define WARN_QUEUE 100
 #define MAX_QUEUE 200
@@ -1468,6 +1469,30 @@ int construct_assoc_request(const u8 *frame, size_t frame_size, u8 *buff, struct
 	return len;
 }
 
+//To get the hexdump of the skbuff, use below command
+//echo 7 > /proc/sys/kernel/printk
+void pkt_hex_dump(char *func_name, unsigned int line_num, struct sk_buff *skb)
+{
+	size_t len;
+	int rowsize = 16;
+	uint8_t *data;
+	int log_level = console_loglevel;
+
+	if (log_level == LOGLEVEL_DEBUG) {
+		printk(KERN_INFO "%s called from %s %d\n", __func__, func_name, line_num);
+		printk(KERN_INFO "Packet hex dump:\n");
+		//data = (uint8_t *) skb_mac_header(skb);
+		data = (uint8_t *) skb->data;
+		if (skb_is_nonlinear(skb)) {
+			len = skb->data_len;
+		} else {
+			len = skb->len;
+		}
+
+		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 16, 1, data, len, true);
+	}
+}
+
 int send_eth_frame(void *frame, uint32_t frame_size, struct mac80211_rdkfmac_data *rdkfmac_data)
 {
 	unsigned char *data;
@@ -1540,8 +1565,11 @@ int send_eth_frame(void *frame, uint32_t frame_size, struct mac80211_rdkfmac_dat
 	memcpy(eth->h_dest, mac_addr, ETH_ALEN);
 
 	skb->dev = dev;
+
+	pkt_hex_dump(__func__, __LINE__, skb);
+
 	dev_queue_xmit(skb);
-	
+
 	kfree(new_frame);
 
 	return 0;
@@ -1609,7 +1637,7 @@ int send_eth_frame_hook(void *frame, uint32_t frame_size, struct mac80211_rdkfma
 
 	skb->dev = dev;
 	dev_queue_xmit(skb);
-	
+
 	kfree(new_frame);
 
 	return 0;
@@ -1637,7 +1665,7 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	{
 		send_eth_frame(skb->data, skb->len, data);
 		send_eth_frame_hook(skb->data, skb->len, data);
-		
+
 		if (!(ieee80211_is_auth(hdr->frame_control))) {
 			//push_frame_to_char_dev(skb->data, skb->len);
 		}

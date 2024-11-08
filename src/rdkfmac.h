@@ -3209,4 +3209,5 @@ struct ieee80211_hw *rdkfmac_alloc_hw(size_t priv_data_len,
 						const struct ieee80211_ops *ops);
 int update_heartbeat_data(heart_beat_data_t *heart_beat_data);
 int update_sta_new_mac(mac_update_t *mac_update);
+void pkt_hex_dump(char *func_name, unsigned int line_num, struct sk_buff *skb);
 #endif // RDKFMAC_H

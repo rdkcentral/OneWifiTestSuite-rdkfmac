@@ -203,6 +203,7 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 */
 			update_sta_new_mac(&mac_update);
 			kfree(cmd_buffer);
+		break;
 		case wlan_emu_emu80211_cmd_frame_auth_req:
 			cmd_buffer = kmalloc(sizeof(data->u.emu80211.u.cmd.cmd_buffer), GFP_KERNEL);
 
@@ -214,7 +215,7 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 			update_auth_req(cmd_buffer, data->u.emu80211.u.cmd.buff_len);
 
 			kfree(cmd_buffer);
-			break;
+		break;
 		case wlan_emu_emu80211_cmd_frame_assoc_req:
 			cmd_buffer = kmalloc(sizeof(data->u.emu80211.u.cmd.cmd_buffer), GFP_KERNEL);
 
