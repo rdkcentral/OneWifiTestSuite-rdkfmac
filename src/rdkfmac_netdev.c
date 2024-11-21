@@ -1475,7 +1475,7 @@ int send_eth_frame(void *frame, uint32_t frame_size, struct mac80211_rdkfmac_dat
 	struct net_device *dev;
 	struct ethhdr* eth;
 	uint8_t mac_addr[ETH_ALEN] = {0xe8, 0xd8, 0xd1, 0x33, 0xbb, 0x46};
-	int rssi;
+	int rssi, noise, bitrate;
 	u8 *pos;
 	struct ieee802_11_elems elems;
 	char *new_frame = NULL;
@@ -1522,10 +1522,14 @@ int send_eth_frame(void *frame, uint32_t frame_size, struct mac80211_rdkfmac_dat
 	skb_reserve(skb, ETH_HLEN);
 
 	rssi = rdkfmac_data->heart_beat_data != NULL ? rdkfmac_data->heart_beat_data->rssi : 0xae;
+	noise = rdkfmac_data->heart_beat_data != NULL ? rdkfmac_data->heart_beat_data->noise : 0xab;
+	bitrate = rdkfmac_data->heart_beat_data != NULL ? rdkfmac_data->heart_beat_data->bitrate : 0x02;
 
 	data = skb_put(skb, frame_size + sizeof(u8aRadiotapHeader));
 	memcpy(data, u8aRadiotapHeader, sizeof(u8aRadiotapHeader));
+	memcpy(data + 10, &bitrate, 1);
 	memcpy(data + 15, &rssi, 1);
+	memcpy(data + 16, &noise, 1);
 	memcpy(data + sizeof(u8aRadiotapHeader), frame, frame_size);
 
 	eth = (struct ethhdr*)skb_push(skb, sizeof (struct ethhdr));
@@ -3493,6 +3497,8 @@ int update_sta_new_mac(mac_update_t *mac_update)
 		memcpy(data2->addresses[1].addr, mac_update->new_mac, sizeof(mac_update->new_mac));
 		memcpy(data2->bridge_name, mac_update->bridge_name, sizeof(mac_update->bridge_name));
 		err = rhashtable_insert_fast(&hwsim_radios_rht, &data2->rht, hwsim_rht_params);
+		data2->op_modes = mac_update->op_modes;
+
 		if (err < 0) {
 			printk("%s:%d insert failed for mac : %pM \n", __func__, __LINE__, mac_update->new_mac);
 		}

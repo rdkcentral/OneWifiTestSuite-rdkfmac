@@ -650,6 +650,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *chan;
 	u32 rates = 0;
+	struct mac80211_rdkfmac_data *rdkfmac_data = local->hw.priv;
 
 	sdata_assert_lock(sdata);
 
@@ -926,7 +927,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		offset = noffset;
 	}
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT) && (rdkfmac_data->op_modes & MODE_VHT))
 		ieee80211_add_vht_ie(sdata, skb, sband,
 					 &assoc_data->ap_vht_cap);
 
@@ -939,7 +940,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		 ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
 		ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE))
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE) && (rdkfmac_data->op_modes & MODE_HE))
 		ieee80211_add_he_ie(sdata, skb, sband);
 
 	/* if present, add any custom non-vendor IEs that go after HE */

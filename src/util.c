@@ -1331,6 +1331,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 	int shift;
 	u32 rate_flags;
 	bool have_80mhz = false;
+	struct mac80211_rdkfmac_data *rdkfmac_data = local->hw.priv;
 
 	*offset = 0;
 
@@ -1464,7 +1465,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 		break;
 	}
 
-	if (sband->vht_cap.vht_supported && have_80mhz) {
+	if (sband->vht_cap.vht_supported && have_80mhz && (rdkfmac_data->op_modes & MODE_VHT)) {
 		if (end - pos < 2 + sizeof(struct ieee80211_vht_cap))
 			goto out_err;
 		pos = ieee80211_ie_build_vht_cap(pos, &sband->vht_cap,
@@ -1493,10 +1494,15 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 	}
 
 	he_cap = ieee80211_get_he_sta_cap(sband);
-	if (he_cap) {
+	if (he_cap && (rdkfmac_data->op_modes & MODE_HE)) {
 		pos = ieee80211_ie_build_he_cap(pos, he_cap, end);
 		if (!pos)
 			goto out_err;
+	}
+
+	if (rdkfmac_data->op_modes & MODE_EHT) {
+		memcpy(pos, eht_cap, sizeof(eht_cap));
+		pos += sizeof(eht_cap);
 	}
 
 	/*

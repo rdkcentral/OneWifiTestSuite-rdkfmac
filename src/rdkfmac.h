@@ -50,6 +50,19 @@ extern const void *const rdkfmac_wiphy_privid; /* for wiphy privid */
 
 struct ieee80211_local;
 
+enum rdkfmac_op_modes {
+	MODE_HT  = BIT(0),
+	MODE_VHT = BIT(1),
+	MODE_HE  = BIT(2),
+	MODE_EHT  = BIT(3),
+};
+
+static const uint8_t eht_cap[] = {
+	0xff, 0x12, 0x6c, 0x22, 0x00, 0xc8, 0x6d, 0x00, 
+	0xe0, 0x10, 0x66, 0x02, 0x00, 0x00, 0x22, 0x22,
+	0x22, 0x22, 0x22, 0x22,
+};
+
 #define RDKFMAC_MAJOR		42
 #define BUF_LEN 256
 #define RDKFMAC_DEVICE_NAME "rdkfmac_dev"
@@ -86,12 +99,12 @@ struct ieee80211_local;
 static const uint8_t u8aRadiotapHeader[] = {
 
 	0x00, 0x00, // version + pad
-	0x12, 0x00, // size
+	0x13, 0x00, // size
 
 	/*
 	 * The full list of which field is which option is in ieee80211_radiotap.h,
 	 */
-	0x2e, 0x48, 0x00, 0x00, // preset flags
+	0x6e, 0x48, 0x00, 0x00, // preset flags
 
 	0x00, // flags
 
@@ -102,6 +115,8 @@ static const uint8_t u8aRadiotapHeader[] = {
 	0x00, 0x00, // chan flags
 
 	0x00, // signal
+
+	0x00, // noise
 
 	0x01, // antena
 
@@ -443,6 +458,7 @@ struct mac80211_rdkfmac_data {
 	int assoc_req_len;
 	char *auth_req;
 	int auth_req_len;
+	int op_modes;
 };
 
 

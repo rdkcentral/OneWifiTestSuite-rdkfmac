@@ -163,7 +163,15 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 			memcpy(&heart_beat_data.rssi, &cmd_buffer[count], sizeof(heart_beat_data.rssi));
 			count += sizeof(heart_beat_data.rssi);
 
-			printk("%s:%d rssi : %d for MAC : %pM\n", __func__, __LINE__, heart_beat_data.rssi, heart_beat_data.mac);
+			memcpy(&heart_beat_data.noise, &cmd_buffer[count], sizeof(heart_beat_data.noise));
+			count += sizeof(heart_beat_data.noise);
+
+			memcpy(&heart_beat_data.bitrate, &cmd_buffer[count], sizeof(heart_beat_data.bitrate));
+			count += sizeof(heart_beat_data.bitrate);
+
+			printk("%s:%d rssi : %d noise : %d bitrate : %d for MAC : %pM\n", __func__, __LINE__,
+				heart_beat_data.rssi, heart_beat_data.noise,
+				heart_beat_data.bitrate, heart_beat_data.mac);
 /*
 			for (count = 0; count < buff_length; count++ ) {
 				printk(" %02X", cmd_buffer[count]);
@@ -184,6 +192,8 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 			count += sizeof(mac_update.old_mac);
 			memcpy(&mac_update.new_mac, &cmd_buffer[count], sizeof(mac_update.new_mac));
 			count += sizeof(mac_update.new_mac);
+			memcpy(&mac_update.op_modes, &cmd_buffer[count], sizeof(mac_update.op_modes));
+			count += sizeof(mac_update.op_modes);
 			memcpy(&mac_update.bridge_name, &cmd_buffer[count], sizeof(mac_update.bridge_name));
 			count += sizeof(mac_update.bridge_name);
 /*

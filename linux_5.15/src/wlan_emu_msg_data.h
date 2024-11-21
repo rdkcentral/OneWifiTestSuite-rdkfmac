@@ -24,6 +24,22 @@ typedef enum {
 	wlan_emu_test_1_subtype_ns_managed_mesh_client,
 	wlan_emu_test_1_subtype_cc_probe_response,
 	wlan_emu_test_1_subtype_cc_authentication,
+	wlan_emu_test_2_subtype_af_connection_admission,
+	wlan_emu_test_2_subtype_af_access_control,
+	wlan_emu_test_2_subtype_af_stats_manager,
+	wlan_emu_test_2_subtype_af_steering_manager,
+	wlan_emu_test_2_subtype_af_optimization,
+	wlan_emu_test_2_subtype_af_grey_listing,
+	wlan_emu_test_2_subtype_af_active_passive_msrmnts,
+	wlan_emu_test_2_subtype_af_whix,
+	wlan_emu_test_2_subtype_af_blaster,
+	wlan_emu_test_2_subtype_af_motion,
+	wlan_emu_test_2_subtype_af_finger_printing,
+	wlan_emu_test_2_subtype_af_tr_181,
+	wlan_emu_test_2_subtype_af_webconfig,
+	wlan_emu_test_2_subtype_af_webpa,
+	wlan_emu_test_3_subtype_pm_stats_get,
+	wlan_emu_test_3_subtype_pm_stats_set,
 	wlan_emu_test_1_subtype_max
 } wlan_emu_test_type_t;
 
