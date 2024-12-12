@@ -404,6 +404,7 @@ static const struct ieee80211_vht_cap mac80211_vht_capa_mod_mask = {
 	},
 };
 
+#define MAX_STR_LEN 64
 static int phy_index = 0;
 struct ieee80211_hw *rdkfmac_alloc_hw(size_t priv_data_len,
 						const struct ieee80211_ops *ops)
@@ -447,8 +448,8 @@ struct ieee80211_hw *rdkfmac_alloc_hw(size_t priv_data_len,
 	 */
 	priv_size = ALIGN(sizeof(*local), NETDEV_ALIGN) + priv_data_len;
 
-	new_name = kmalloc(6, GFP_ATOMIC);
-	snprintf(new_name, 6, "wsim%d", phy_index);
+	new_name = kmalloc(MAX_STR_LEN, GFP_ATOMIC);
+	snprintf(new_name, MAX_STR_LEN, "wsim%d", phy_index);
 	wiphy = wiphy_new_nm(&rdkfmac_config_ops, priv_size, new_name);
 	kfree(new_name);
 

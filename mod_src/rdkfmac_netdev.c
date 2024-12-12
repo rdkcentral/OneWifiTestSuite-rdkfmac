@@ -55,6 +55,11 @@
 #define WARN_QUEUE 100
 #define MAX_QUEUE 200
 
+int max_sim_clients = 3;
+module_param(max_sim_clients, int, 0644);
+MODULE_PARM_DESC(max_sim_clients,
+                 "Number of simulated clients initialized by rdkfmac");
+
 static int channels = 1;
 
 static int nl_family_id = 0;
@@ -5175,7 +5180,9 @@ static void hwsim_exit_netlink(void)
 static int __init rdkfmac_init_module(void)
 {
 	int err;
+	unsigned int itr = 0;
 	struct hwsim_new_radio_params param = { 0 };
+	printk("%s:%d init with %d simulated clients\n", __func__, __LINE__, max_sim_clients);
 
 	err = rhashtable_init(&hwsim_radios_rht, &hwsim_rht_params);
 	if (err)
@@ -5199,19 +5206,13 @@ static int __init rdkfmac_init_module(void)
 		goto out_exit_netlink;
 	}
 
-	err = mac80211_hwsim_new_radio(NULL, &param);
-	if (err < 0)
-		goto out_free_radios;
-printk("Radio 1 create\n");
-	err = mac80211_hwsim_new_radio(NULL, &param);
-	if (err < 0)
-		goto out_free_radios;
-printk("Radio 2 create\n");
-	err = mac80211_hwsim_new_radio(NULL, &param);
-	if (err < 0)
-		goto out_free_radios;
-	printk("Radio 3 create\n");
-	hwsim_mon = alloc_netdev(0, "hwsim%d", NET_NAME_UNKNOWN,
+    for (itr = 0; itr < max_sim_clients; itr++) {
+        err = mac80211_hwsim_new_radio(NULL, &param);
+        if (err < 0)
+            goto out_free_radios;
+    }
+
+        hwsim_mon = alloc_netdev(0, "hwsim%d", NET_NAME_UNKNOWN,
 				 hwsim_mon_setup);
 	if (hwsim_mon == NULL) {
 		err = -ENOMEM;
