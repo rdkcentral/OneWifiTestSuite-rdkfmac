@@ -59,7 +59,9 @@ typedef enum {
 
 typedef enum {
 	wlan_emu_emu80211_cmd_radiotap,
-	wlan_emu_emu80211_cmd_mac_update
+	wlan_emu_emu80211_cmd_mac_update,
+	wlan_emu_emu80211_cmd_frame_auth_req,
+	wlan_emu_emu80211_cmd_frame_assoc_req
 } wlan_emu_emu80211_cmd_type_t;
 
 typedef struct {
@@ -196,11 +198,14 @@ typedef struct {
 typedef struct {
 	mac_address_t mac;
 	int rssi;
+	int noise;
+	int bitrate;
 } heart_beat_data_t;
 
 typedef struct {
 	mac_address_t old_mac;
 	mac_address_t new_mac;
+	int op_modes;
 	char bridge_name[32];
 } mac_update_t;
 

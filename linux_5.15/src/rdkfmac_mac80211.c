@@ -635,6 +635,7 @@ struct ieee80211_hw *rdkfmac_alloc_hw(size_t priv_data_len,
 	local->hw.radiotap_timestamp.units_pos = -1;
 	local->hw.radiotap_timestamp.accuracy = -1;
 
+	phy_index++;
 	return &local->hw;
  err_free:
 	wiphy_free(wiphy);

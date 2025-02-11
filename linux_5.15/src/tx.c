@@ -1776,7 +1776,7 @@ int send_data_frame(void *buff, uint32_t frame_size, struct ieee80211_hw *hw)
 	struct net_device *dev;
 	struct ethhdr* eth;
 	uint8_t mac_addr[ETH_ALEN] = {0xe8, 0xd8, 0xd1, 0x33, 0xbb, 0x46};
-	static int rssi;
+	static int rssi, noise;
 	struct mac80211_rdkfmac_data *rdkfmac_data = hw->priv;
 
 	dev = dev_get_by_name(&init_net, rdkfmac_data->bridge_name);
@@ -1793,12 +1793,14 @@ int send_data_frame(void *buff, uint32_t frame_size, struct ieee80211_hw *hw)
 	}
 
 	rssi = rdkfmac_data->heart_beat_data != NULL ? rdkfmac_data->heart_beat_data->rssi : 0xae;
+	noise = rdkfmac_data->heart_beat_data != NULL ? rdkfmac_data->heart_beat_data->noise : 0xab;
 
 	skb_reserve(skb, ETH_HLEN);
 
 	data = skb_put(skb, frame_size + sizeof(u8aRadiotapHeader));
 	memcpy(data, u8aRadiotapHeader, sizeof(u8aRadiotapHeader));
 	memcpy(data + 15, &rssi, 1);
+	memcpy(data + 16, &noise, 1);
 	memcpy(data + sizeof(u8aRadiotapHeader), buff, frame_size);
 
 	eth = (struct ethhdr*)skb_push(skb, sizeof (struct ethhdr));

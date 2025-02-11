@@ -164,7 +164,15 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 			memcpy(&heart_beat_data.rssi, &cmd_buffer[count], sizeof(heart_beat_data.rssi));
 			count += sizeof(heart_beat_data.rssi);
 
-			printk("%s:%d rssi : %d for MAC : %pM\n", __func__, __LINE__, heart_beat_data.rssi, heart_beat_data.mac);
+			memcpy(&heart_beat_data.noise, &cmd_buffer[count], sizeof(heart_beat_data.noise));
+			count += sizeof(heart_beat_data.noise);
+
+			memcpy(&heart_beat_data.bitrate, &cmd_buffer[count], sizeof(heart_beat_data.bitrate));
+			count += sizeof(heart_beat_data.bitrate);
+
+			printk("%s:%d rssi : %d noise : %d bitrate : %d for MAC : %pM\n", __func__, __LINE__,
+				heart_beat_data.rssi, heart_beat_data.noise,
+				heart_beat_data.bitrate, heart_beat_data.mac);
 /*
 			for (count = 0; count < buff_length; count++ ) {
 				printk(" %02X", cmd_buffer[count]);
@@ -172,7 +180,7 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 */
 			update_heartbeat_data(&heart_beat_data);
 			kfree(cmd_buffer);
-		break;
+			break;
 		case wlan_emu_emu80211_cmd_mac_update:
 			buff_length = data->u.emu80211.u.cmd.buff_len;
 			cmd_buffer = kmalloc(sizeof(data->u.emu80211.u.cmd.cmd_buffer), GFP_KERNEL);
@@ -184,6 +192,8 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 			count += sizeof(mac_update.old_mac);
 			memcpy(&mac_update.new_mac, &cmd_buffer[count], sizeof(mac_update.new_mac));
 			count += sizeof(mac_update.new_mac);
+			memcpy(&mac_update.op_modes, &cmd_buffer[count], sizeof(mac_update.op_modes));
+			count += sizeof(mac_update.op_modes);
 			memcpy(&mac_update.bridge_name, &cmd_buffer[count], sizeof(mac_update.bridge_name));
 			count += sizeof(mac_update.bridge_name);
 /*
@@ -193,7 +203,31 @@ void push_to_rdkfmac_device(wlan_emu_msg_data_t *data)
 */
 			update_sta_new_mac(&mac_update);
 			kfree(cmd_buffer);
-		break;
+			break;
+		case wlan_emu_emu80211_cmd_frame_auth_req:
+			cmd_buffer = kmalloc(sizeof(data->u.emu80211.u.cmd.cmd_buffer), GFP_KERNEL);
+
+			if (cmd_buffer == NULL) {
+				return;
+			}
+
+			memcpy(cmd_buffer, data->u.emu80211.u.cmd.cmd_buffer, sizeof(data->u.emu80211.u.cmd.cmd_buffer));
+			update_auth_req(cmd_buffer, data->u.emu80211.u.cmd.buff_len);
+
+			kfree(cmd_buffer);
+			break;
+		case wlan_emu_emu80211_cmd_frame_assoc_req:
+			cmd_buffer = kmalloc(sizeof(data->u.emu80211.u.cmd.cmd_buffer), GFP_KERNEL);
+
+			if (cmd_buffer == NULL) {
+				return;
+			}
+
+			memcpy(cmd_buffer, data->u.emu80211.u.cmd.cmd_buffer, sizeof(data->u.emu80211.u.cmd.cmd_buffer));
+			update_assoc_req(cmd_buffer, data->u.emu80211.u.cmd.buff_len);
+
+			kfree(cmd_buffer);
+			break;
 		default:
 		break;
 	}

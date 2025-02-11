@@ -1399,6 +1399,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 	int shift;
 	u32 rate_flags;
 	bool have_80mhz = false;
+	struct mac80211_rdkfmac_data *rdkfmac_data = local->hw.priv;
 
 	*offset = 0;
 
@@ -1532,7 +1533,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
-	if (sband->vht_cap.vht_supported && have_80mhz) {
+	if (sband->vht_cap.vht_supported && have_80mhz && (rdkfmac_data->op_modes & MODE_VHT)) {
 		if (end - pos < 2 + sizeof(struct ieee80211_vht_cap))
 			goto out_err;
 		pos = ieee80211_ie_build_vht_cap(pos, &sband->vht_cap,
@@ -1562,9 +1563,9 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 
 	he_cap = ieee80211_get_he_iftype_cap(sband,
 					     ieee80211_vif_type_p2p(&sdata->vif));
-	if (he_cap &&
+	if ((he_cap &&
 	    cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
-					 IEEE80211_CHAN_NO_HE)) {
+					 IEEE80211_CHAN_NO_HE)) && (rdkfmac_data->op_modes & MODE_HE)) {
 		pos = ieee80211_ie_build_he_cap(0, pos, he_cap, end);
 		if (!pos)
 			goto out_err;
@@ -1577,10 +1578,10 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 					 IEEE80211_CHAN_NO_HE |
 					 IEEE80211_CHAN_NO_EHT));
 
-	if (eht_cap &&
+	if ((eht_cap &&
 	    cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
 					 IEEE80211_CHAN_NO_HE |
-					 IEEE80211_CHAN_NO_EHT)) {
+					 IEEE80211_CHAN_NO_EHT)) && (rdkfmac_data->op_modes & MODE_EHT)) {
 		pos = ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, end,
 				sdata->vif.type == NL80211_IFTYPE_AP);
 		if (!pos)

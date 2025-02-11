@@ -731,6 +731,7 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	const struct ieee80211_sband_iftype_data *iftd;
 	struct ieee80211_prep_tx_info info = {};
 	int ret;
+	struct mac80211_rdkfmac_data *rdkfmac_data = local->hw.priv;
 
 	/* we know it's writable, cast away the const */
 	if (assoc_data->ie_len)
@@ -1024,8 +1025,8 @@ skip_rates:
 		offset = noffset;
 	}
 
-	if (sband->band != NL80211_BAND_6GHZ &&
-	    !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
+	if ((sband->band != NL80211_BAND_6GHZ &&
+	    !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT)) && (rdkfmac_data->op_modes & MODE_VHT))
 		ieee80211_add_vht_ie(sdata, skb, sband,
 				     &assoc_data->ap_vht_cap);
 
@@ -1038,13 +1039,13 @@ skip_rates:
 	     ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
 		ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE)) {
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE) && (rdkfmac_data->op_modes & MODE_HE)) {
 		ieee80211_add_he_ie(sdata, skb, sband);
 
-          printk("ADD EHT MLME %d\n", !(ifmgd->flags & IEEE80211_STA_DISABLE_EHT));
-		if (!(ifmgd->flags & IEEE80211_STA_DISABLE_EHT))
-			ieee80211_add_eht_ie(sdata, skb, sband);
-	}
+            printk("ADD EHT MLME %d\n", !(ifmgd->flags & IEEE80211_STA_DISABLE_EHT) && (rdkfmac_data->op_modes & MODE_EHT));
+	    if (!(ifmgd->flags & IEEE80211_STA_DISABLE_EHT) && (rdkfmac_data->op_modes & MODE_EHT))
+		    ieee80211_add_eht_ie(sdata, skb, sband);
+        }
 
 	/* if present, add any custom non-vendor IEs that go after HE */
 	if (assoc_data->ie_len) {
