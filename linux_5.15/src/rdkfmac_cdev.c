@@ -353,31 +353,34 @@ static void handle_frm80211_msg_w(char *read_buff, size_t size) {
 static ssize_t rdkfmac_write(struct file *file, const char __user *user_buffer,
 					size_t size, loff_t * offset)
 {
-	wlan_emu_msg_data_t	spec;
+	wlan_emu_msg_data_t *pSpec;
 	ssize_t sz;
 	char *read_buff;
 
+	pSpec = kmalloc(sizeof(wlan_emu_msg_data_t), GFP_KERNEL);
 	read_buff = kmalloc(size, GFP_KERNEL);
 	memset(read_buff, 0, size);
 	if (copy_from_user(read_buff, user_buffer, size)) {
 		printk("%s:%d: potential copy error\n", __func__, __LINE__);
+		kfree(pSpec);
+		kfree(read_buff);
 		return 0;
 	}
 
-	memcpy(&spec.type, read_buff, sizeof(wlan_emu_msg_type_t));
-	switch (spec.type) {
+	memcpy((char*)&pSpec->type, read_buff, sizeof(wlan_emu_msg_type_t));
+	switch (pSpec->type) {
 		case wlan_emu_msg_type_frm80211:
 			handle_frm80211_msg_w(read_buff, size);
 			sz = size;
 			break;
 		case wlan_emu_msg_type_emu80211:
-			memcpy(&spec, read_buff, sizeof(wlan_emu_msg_data_t));
-			handle_emu80211_msg_w(&spec);
+			memcpy(pSpec, read_buff, sizeof(wlan_emu_msg_data_t));
+			handle_emu80211_msg_w(pSpec);
 			sz = sizeof(wlan_emu_msg_data_t);
 			break;
 		case wlan_emu_msg_type_webconfig:
-			memcpy(&spec, read_buff, sizeof(wlan_emu_msg_data_t));
-			push_to_char_device(&spec);
+			memcpy(pSpec, read_buff, sizeof(wlan_emu_msg_data_t));
+			push_to_char_device(pSpec);
 			sz = sizeof(wlan_emu_msg_data_t);
 			break;
 		default:
@@ -387,6 +390,7 @@ static ssize_t rdkfmac_write(struct file *file, const char __user *user_buffer,
 	}
 
 	kfree(read_buff);
+	kfree(pSpec);
 	return sz;
 }
 
