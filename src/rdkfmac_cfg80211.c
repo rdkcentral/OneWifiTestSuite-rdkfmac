@@ -6,7 +6,6 @@
 #include <linux/rcupdate.h>
 #include <linux/fips.h>
 #include <linux/if_ether.h>
-#include <net/cfg80211.h>
 
 #include "rdkfmac.h"
 #include "driver-ops.h"

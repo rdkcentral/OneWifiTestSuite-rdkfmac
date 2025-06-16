@@ -1,15 +1,16 @@
 #ifndef WLAN_EMU_MSG_DATA_H
 #define WLAN_EMU_MSG_DATA_H
 
-#include "cfg80211_copy.h"
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#define MAX_CFG80211_INTF_NAME_SZ	64
-#define MAX_CFG80211_BEACON_SZ	4096
+#include "nl80211_copy.h"
+#define WLAN_EMU_INTF_NAME_SZ   64
+#define WLAN_EMU_BEACON_SZ      4096
+#define ETH_ALEN 6
+
 typedef unsigned char mac_address_t[6];
 
 typedef enum {
@@ -65,19 +66,19 @@ typedef enum {
 } wlan_emu_emu80211_cmd_type_t;
 
 typedef struct {
-	char name[MAX_CFG80211_INTF_NAME_SZ];
+	char name[WLAN_EMU_INTF_NAME_SZ];
 } wlan_emu_wiphy_t;
 
 typedef struct {
-	unsigned char	data[MAX_CFG80211_BEACON_SZ];
+	unsigned char	data[WLAN_EMU_BEACON_SZ];
 } wlan_emu_beacon_data_t;
 
 typedef struct {
 	int ifindex;
 	int phy_index;
-	char name[MAX_CFG80211_INTF_NAME_SZ];
-	enum nl80211_iftype type;
+	char name[WLAN_EMU_INTF_NAME_SZ];
 	u64 wdev_id;
+	enum nl80211_iftype type;
 	u8 macaddr[ETH_ALEN];
 	int generation;
 	u8 use_4addr;
@@ -101,13 +102,15 @@ typedef struct {
 	int ifindex;
 	int phy_index;
 	mac_address_t macaddr;
-	struct cfg80211_ap_settings ap_params;
+	char *beacon_head;
+	size_t head_len;
+	char *beacon_tail;
+	size_t tail_len;
 } wlan_emu_cfg80211_start_ap_t;
 
 typedef struct {
 	int ifindex;
 	int phy_index;
-	struct cfg80211_beacon_data *info;
 } wlan_emu_cfg80211_change_beacon_t;
 
 typedef struct {
@@ -131,11 +134,11 @@ struct radiotap_header {
 }__attribute__((packed));
 
 typedef struct {
-	char	name[MAX_CFG80211_INTF_NAME_SZ];
+	char	name[WLAN_EMU_INTF_NAME_SZ];
 } wlan_emu_hw_t;
 
 typedef struct {
-	char	name[MAX_CFG80211_INTF_NAME_SZ];
+	char	name[WLAN_EMU_INTF_NAME_SZ];
 } wlan_emu_vif_t;
 
 typedef struct {

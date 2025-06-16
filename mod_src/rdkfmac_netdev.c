@@ -39,7 +39,6 @@
 #include <linux/rhashtable.h>
 #include <linux/nospec.h>
 #include <net/fq.h>
-#include <net/cfg80211.h>
 #include <crypto/arc4.h>
 #include <linux/leds.h>
 #include <linux/average.h>
@@ -4133,452 +4132,47 @@ static const struct nla_policy test_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_HE_OBSS_PD] = NLA_POLICY_NESTED(he_obss_pd_policy),
 };
 
-static int nl80211_parse_beacon(struct nlattr *attrs[], struct cfg80211_beacon_data *bcn)
-{
-	bool haveinfo = false;
-	int err;
-
-	memset(bcn, 0, sizeof(*bcn));
-
-	if (attrs[NL80211_ATTR_BEACON_HEAD]) {
-		bcn->head = nla_data(attrs[NL80211_ATTR_BEACON_HEAD]);
-		bcn->head_len = nla_len(attrs[NL80211_ATTR_BEACON_HEAD]);
-		if (!bcn->head_len)
-			return -EINVAL;
-		haveinfo = true;
-	}
-
-	if (attrs[NL80211_ATTR_BEACON_TAIL]) {
-		bcn->tail = nla_data(attrs[NL80211_ATTR_BEACON_TAIL]);
-		bcn->tail_len = nla_len(attrs[NL80211_ATTR_BEACON_TAIL]);
-		haveinfo = true;
-	}
-
-	if (!haveinfo)
-		return -EINVAL;
-
-	if (attrs[NL80211_ATTR_IE]) {
-		bcn->beacon_ies = nla_data(attrs[NL80211_ATTR_IE]);
-		bcn->beacon_ies_len = nla_len(attrs[NL80211_ATTR_IE]);
-	}
-
-	if (attrs[NL80211_ATTR_IE_PROBE_RESP]) {
-		bcn->proberesp_ies =
-			nla_data(attrs[NL80211_ATTR_IE_PROBE_RESP]);
-		bcn->proberesp_ies_len =
-			nla_len(attrs[NL80211_ATTR_IE_PROBE_RESP]);
-	}
-
-	if (attrs[NL80211_ATTR_IE_ASSOC_RESP]) {
-		bcn->assocresp_ies =
-			nla_data(attrs[NL80211_ATTR_IE_ASSOC_RESP]);
-		bcn->assocresp_ies_len =
-			nla_len(attrs[NL80211_ATTR_IE_ASSOC_RESP]);
-	}
-
-	if (attrs[NL80211_ATTR_PROBE_RESP]) {
-		bcn->probe_resp = nla_data(attrs[NL80211_ATTR_PROBE_RESP]);
-		bcn->probe_resp_len = nla_len(attrs[NL80211_ATTR_PROBE_RESP]);
-	}
-
-	if (attrs[NL80211_ATTR_FTM_RESPONDER]) {
-		struct nlattr *tb[NL80211_FTM_RESP_ATTR_MAX + 1];
-
-		err = nla_parse_nested_deprecated(tb,
-						NL80211_FTM_RESP_ATTR_MAX,
-						attrs[NL80211_ATTR_FTM_RESPONDER],
-						NULL, NULL);
-		if (err)
-			return err;
-
-		//wiphy_ext_feature_isset(&rdev->wiphy, NL80211_EXT_FEATURE_ENABLE_FTM_RESPONDER))
-		if (tb[NL80211_FTM_RESP_ATTR_ENABLED])
-			bcn->ftm_responder = 1;
-		else
-			return -EOPNOTSUPP;
-
-		if (tb[NL80211_FTM_RESP_ATTR_LCI]) {
-			bcn->lci = nla_data(tb[NL80211_FTM_RESP_ATTR_LCI]);
-			bcn->lci_len = nla_len(tb[NL80211_FTM_RESP_ATTR_LCI]);
-		}
-
-		if (tb[NL80211_FTM_RESP_ATTR_CIVICLOC]) {
-			bcn->civicloc = nla_data(tb[NL80211_FTM_RESP_ATTR_CIVICLOC]);
-			bcn->civicloc_len = nla_len(tb[NL80211_FTM_RESP_ATTR_CIVICLOC]);
-		}
-	} else {
-		bcn->ftm_responder = -1;
-	}
-
-	return 0;
-}
-
-static bool nl80211_valid_wpa_versions(u32 wpa_versions)
-{
-	return !(wpa_versions & ~(NL80211_WPA_VERSION_1 |
-				NL80211_WPA_VERSION_2 |
-				NL80211_WPA_VERSION_3));
-}
-
-static int nl80211_crypto_settings(struct nlattr *tb[], struct cfg80211_crypto_settings *settings, int cipher_limit)
-{
-	memset(settings, 0, sizeof(*settings));
-
-	settings->control_port = tb[NL80211_ATTR_CONTROL_PORT];
-
-	if (tb[NL80211_ATTR_CONTROL_PORT_ETHERTYPE]) {
-		u16 proto;
-
-		proto = nla_get_u16( tb[NL80211_ATTR_CONTROL_PORT_ETHERTYPE]);
-		settings->control_port_ethertype = cpu_to_be16(proto);
-
-		if (tb[NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT])
-			settings->control_port_no_encrypt = true;
-	} else
-		settings->control_port_ethertype = cpu_to_be16(ETH_P_PAE);
-
-	if (tb[NL80211_ATTR_CONTROL_PORT_OVER_NL80211]) {
-		settings->control_port_over_nl80211 = true;
-	}
-
-	if (tb[NL80211_ATTR_CIPHER_SUITES_PAIRWISE]) {
-		void *data;
-		int len;
-
-		data = nla_data(tb[NL80211_ATTR_CIPHER_SUITES_PAIRWISE]);
-		len = nla_len(tb[NL80211_ATTR_CIPHER_SUITES_PAIRWISE]);
-		settings->n_ciphers_pairwise = len / sizeof(u32);
-
-		if (len % sizeof(u32))
-			return -EINVAL;
-
-		if (settings->n_ciphers_pairwise > cipher_limit)
-			return -EINVAL;
-
-		memcpy(settings->ciphers_pairwise, data, len);
-	}
-
-	if (tb[NL80211_ATTR_CIPHER_SUITE_GROUP]) {
-		settings->cipher_group =
-			nla_get_u32(tb[NL80211_ATTR_CIPHER_SUITE_GROUP]);
-	}
-
-	if (tb[NL80211_ATTR_WPA_VERSIONS]) {
-		settings->wpa_versions = nla_get_u32(tb[NL80211_ATTR_WPA_VERSIONS]);
-		if (!nl80211_valid_wpa_versions(settings->wpa_versions))
-			return -EINVAL;
-	}
-
-	if (tb[NL80211_ATTR_AKM_SUITES]) {
-		void *data;
-		int len;
-
-		data = nla_data(tb[NL80211_ATTR_AKM_SUITES]);
-		len = nla_len(tb[NL80211_ATTR_AKM_SUITES]);
-		settings->n_akm_suites = len / sizeof(u32);
-
-		if (len % sizeof(u32))
-			return -EINVAL;
-
-		if (settings->n_akm_suites > NL80211_MAX_NR_AKM_SUITES)
-			return -EINVAL;
-
-		memcpy(settings->akm_suites, data, len);
-	}
-
-	if (tb[NL80211_ATTR_PMK]) {
-		if (nla_len(tb[NL80211_ATTR_PMK]) != WLAN_PMK_LEN)
-			return -EINVAL;
-		settings->psk = nla_data(tb[NL80211_ATTR_PMK]);
-	}
-
-	if (tb[NL80211_ATTR_SAE_PASSWORD]) {
-		settings->sae_pwd = nla_data(tb[NL80211_ATTR_SAE_PASSWORD]);
-		settings->sae_pwd_len = nla_len(tb[NL80211_ATTR_SAE_PASSWORD]);
-	}
-
-	return 0;
-}
-
-int nl80211_parse_chandef(struct genl_info *info, struct cfg80211_chan_def *chandef)
-{
-		int freq;
-	u32 control_freq;
-	struct nlattr **attrs = info->attrs;
-
-	if (!attrs[NL80211_ATTR_WIPHY_FREQ])
-		return -EINVAL;
-
-	freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]); 
-	control_freq = MHZ_TO_KHZ(freq);
-
-	memset(chandef, 0, sizeof(*chandef));
-	//XXX get rdev by index?
-	//chandef->chan = ieee80211_get_channel_khz(&rdev->wiphy, control_freq);
-	chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
-	chandef->center_freq1 = KHZ_TO_MHZ(control_freq);
-	chandef->center_freq2 = 0;
-
-	if (attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
-		enum nl80211_channel_type chantype;
-
-		chantype = nla_get_u32(attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
-
-		switch (chantype) {
-		case NL80211_CHAN_NO_HT:
-		case NL80211_CHAN_HT20:
-		case NL80211_CHAN_HT40PLUS:
-		case NL80211_CHAN_HT40MINUS:
-			cfg80211_chandef_create(chandef, chandef->chan, chantype);
-			break;
-		default:
-			return -EINVAL;
-		}
-	} else if (attrs[NL80211_ATTR_CHANNEL_WIDTH]) {
-		chandef->width = nla_get_u32(attrs[NL80211_ATTR_CHANNEL_WIDTH]);
-
-		if (attrs[NL80211_ATTR_CENTER_FREQ1]) {
-			chandef->center_freq1 = nla_get_u32(attrs[NL80211_ATTR_CENTER_FREQ1]);
-		}
-		if (attrs[NL80211_ATTR_CENTER_FREQ2])
-			chandef->center_freq2 = nla_get_u32(attrs[NL80211_ATTR_CENTER_FREQ2]);
-	}
-
-	if (attrs[NL80211_ATTR_WIPHY_EDMG_CHANNELS]) {
-		chandef->edmg.channels = nla_get_u8(attrs[NL80211_ATTR_WIPHY_EDMG_CHANNELS]);
-
-		if (attrs[NL80211_ATTR_WIPHY_EDMG_BW_CONFIG])
-			chandef->edmg.bw_config = nla_get_u8(attrs[NL80211_ATTR_WIPHY_EDMG_BW_CONFIG]);
-	} else {
-		chandef->edmg.bw_config = 0;
-		chandef->edmg.channels = 0;
-	}
-
-	return 0;
-}
-
-static int validate_acl_mac_addrs(struct nlattr *nl_attr)
-{
-	struct nlattr *attr;
-	int n_entries = 0, tmp;
-
-	nla_for_each_nested(attr, nl_attr, tmp) {
-		if (nla_len(attr) != ETH_ALEN)
-			return -EINVAL;
-
-		n_entries++;
-	}
-
-	return n_entries;
-}
-
-static struct cfg80211_acl_data *parse_acl_data(struct genl_info *info)
-{
-	enum nl80211_acl_policy acl_policy;
-	struct nlattr *attr;
-	struct cfg80211_acl_data *acl;
-	int i = 0, n_entries, tmp;
-
-	if (!info->attrs[NL80211_ATTR_ACL_POLICY])
-		return ERR_PTR(-EINVAL);
-
-	acl_policy = nla_get_u32(info->attrs[NL80211_ATTR_ACL_POLICY]);
-	if (acl_policy != NL80211_ACL_POLICY_ACCEPT_UNLESS_LISTED &&
-		acl_policy != NL80211_ACL_POLICY_DENY_UNLESS_LISTED)
-		return ERR_PTR(-EINVAL);
-
-	if (!info->attrs[NL80211_ATTR_MAC_ADDRS])
-		return ERR_PTR(-EINVAL);
-
-	n_entries = validate_acl_mac_addrs(info->attrs[NL80211_ATTR_MAC_ADDRS]);
-	if (n_entries < 0)
-		return ERR_PTR(n_entries);
-
-	acl = kzalloc(struct_size(acl, mac_addrs, n_entries), GFP_KERNEL);
-	if (!acl)
-		return ERR_PTR(-ENOMEM);
-
-	nla_for_each_nested(attr, info->attrs[NL80211_ATTR_MAC_ADDRS], tmp) {
-		memcpy(acl->mac_addrs[i].addr, nla_data(attr), ETH_ALEN);
-		i++;
-	}
-
-	acl->n_acl_entries = n_entries;
-	acl->acl_policy = acl_policy;
-
-	return acl;
-}
-
-static int nl80211_parse_he_obss_pd(struct nlattr *attrs,
-					struct ieee80211_he_obss_pd *he_obss_pd)
-{
-	struct nlattr *tb[NL80211_HE_OBSS_PD_ATTR_MAX + 1];
-	int err;
-
-	err = nla_parse_nested(tb, NL80211_HE_OBSS_PD_ATTR_MAX, attrs,
-					he_obss_pd_policy, NULL);
-	if (err)
-		return err;
-
-	if (tb[NL80211_HE_OBSS_PD_ATTR_MIN_OFFSET])
-		he_obss_pd->min_offset =
-			nla_get_u8(tb[NL80211_HE_OBSS_PD_ATTR_MIN_OFFSET]);
-	if (tb[NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET])
-		he_obss_pd->max_offset =
-			nla_get_u8(tb[NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET]);
-
-	if (he_obss_pd->min_offset > he_obss_pd->max_offset)
-		return -EINVAL;
-
-	he_obss_pd->enable = true;
-
-	return 0;
-}
-
-static void nl80211_check_ap_rate_selectors(struct cfg80211_ap_settings *params,
-						const struct element *rates)
-{
-	int i;
-
-	if (!rates)
-		return;
-
-	for (i = 0; i < rates->datalen; i++) {
-		if (rates->data[i] == BSS_MEMBERSHIP_SELECTOR_HT_PHY)
-			params->ht_required = true;
-		if (rates->data[i] == BSS_MEMBERSHIP_SELECTOR_VHT_PHY)
-			params->vht_required = true;
-	}
-}
-
-static void nl80211_calculate_ap_params(struct cfg80211_ap_settings *params)
-{
-	const struct cfg80211_beacon_data *bcn = &params->beacon;
-	size_t ies_len = bcn->tail_len;
-	const u8 *ies = bcn->tail;
-	const struct element *rates;
-	const struct element *cap;
-
-	rates = cfg80211_find_elem(WLAN_EID_SUPP_RATES, ies, ies_len);
-	nl80211_check_ap_rate_selectors(params, rates);
-
-	rates = cfg80211_find_elem(WLAN_EID_EXT_SUPP_RATES, ies, ies_len);
-	nl80211_check_ap_rate_selectors(params, rates);
-
-	cap = cfg80211_find_elem(WLAN_EID_HT_CAPABILITY, ies, ies_len);
-	if (cap && cap->datalen >= sizeof(*params->ht_cap))
-		params->ht_cap = (void *)cap->data;
-	cap = cfg80211_find_elem(WLAN_EID_VHT_CAPABILITY, ies, ies_len);
-	if (cap && cap->datalen >= sizeof(*params->vht_cap))
-		params->vht_cap = (void *)cap->data;
-	cap = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_CAPABILITY, ies, ies_len);
-	if (cap && cap->datalen >= sizeof(*params->he_cap) + 1)
-		params->he_cap = (void *)(cap->data + 1);
-}
-
 static void parse_start_ap(struct genl_info *info)
 {
-	int idx = 0, wiphy_idx=0;
-	struct cfg80211_ap_settings *ap_params;
+	int idx = 0, wiphy_idx = 0;
 	wlan_emu_msg_data_t *start_ap_msg;
 
 	if (!info->attrs[NL80211_ATTR_BEACON_INTERVAL] || !info->attrs[NL80211_ATTR_DTIM_PERIOD] || !info->attrs[NL80211_ATTR_BEACON_HEAD])
-	return;
-
-	ap_params = kzalloc(sizeof(*ap_params), GFP_KERNEL);
-	if (!ap_params)
-	return;
+		return;
 
 	start_ap_msg = kzalloc(sizeof(*start_ap_msg), GFP_KERNEL);
 	if (!start_ap_msg)
-	return;
+		return;
 
+	memset(start_ap_msg, 0, sizeof(*start_ap_msg));
 	if (info->attrs[NL80211_ATTR_IFINDEX])
-	idx = nla_get_u32(info->attrs[NL80211_ATTR_IFINDEX]);
+		idx = nla_get_u32(info->attrs[NL80211_ATTR_IFINDEX]);
 
 	if (info->attrs[NL80211_ATTR_WIPHY])
-	wiphy_idx = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY]);
-
-	if (nl80211_parse_beacon(info->attrs, &ap_params->beacon))
-	return;
+		wiphy_idx = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY]);
 
 	start_ap_msg->type = wlan_emu_msg_type_cfg80211;
 	start_ap_msg->u.cfg80211.ops = wlan_emu_cfg80211_ops_type_start_ap;
 	start_ap_msg->u.cfg80211.u.start_ap.ifindex = idx;
 	start_ap_msg->u.cfg80211.u.start_ap.phy_index = wiphy_idx;
 
-	ap_params->beacon_interval =
-	nla_get_u32(info->attrs[NL80211_ATTR_BEACON_INTERVAL]);
-	ap_params->dtim_period =
-	nla_get_u32(info->attrs[NL80211_ATTR_DTIM_PERIOD]);
-
-	if (info->attrs[NL80211_ATTR_SSID]) {
-	ap_params->ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
-	ap_params->ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
-	if (ap_params->ssid_len == 0)
-		return;
+	if (info->attrs[NL80211_ATTR_BEACON_HEAD])
+	{
+		start_ap_msg->u.cfg80211.u.start_ap.head_len = nla_len(info->attrs[NL80211_ATTR_BEACON_HEAD]);
+		start_ap_msg->u.cfg80211.u.start_ap.beacon_head = nla_data(info->attrs[NL80211_ATTR_BEACON_HEAD]);
+	}
+	if (info->attrs[NL80211_ATTR_BEACON_TAIL])
+	{
+		start_ap_msg->u.cfg80211.u.start_ap.tail_len = nla_len(info->attrs[NL80211_ATTR_BEACON_TAIL]);
+		start_ap_msg->u.cfg80211.u.start_ap.beacon_tail = nla_data(info->attrs[NL80211_ATTR_BEACON_TAIL]);
 	}
 
-	if (info->attrs[NL80211_ATTR_HIDDEN_SSID])
-	ap_params->hidden_ssid = nla_get_u32(info->attrs[NL80211_ATTR_HIDDEN_SSID]);
-
-	ap_params->privacy = !!info->attrs[NL80211_ATTR_PRIVACY];
-
-	if (info->attrs[NL80211_ATTR_AUTH_TYPE]) {
-	ap_params->auth_type = nla_get_u32(info->attrs[NL80211_ATTR_AUTH_TYPE]);
-	} else
-	ap_params->auth_type = NL80211_AUTHTYPE_AUTOMATIC;
-
-	if (nl80211_crypto_settings(info->attrs, &ap_params->crypto, NL80211_MAX_NR_CIPHER_SUITES))
-	return;
-
-	if (info->attrs[NL80211_ATTR_INACTIVITY_TIMEOUT])
-	ap_params->inactivity_timeout = nla_get_u16(info->attrs[NL80211_ATTR_INACTIVITY_TIMEOUT]);
-
-	if (info->attrs[NL80211_ATTR_P2P_CTWINDOW])
-	ap_params->p2p_ctwindow = nla_get_u8(info->attrs[NL80211_ATTR_P2P_CTWINDOW]);
-
-	if (info->attrs[NL80211_ATTR_P2P_OPPPS])
-	ap_params->p2p_opp_ps = nla_get_u8(info->attrs[NL80211_ATTR_P2P_OPPPS]);
-
-	if (info->attrs[NL80211_ATTR_WIPHY_FREQ])
-	nl80211_parse_chandef(info, &ap_params->chandef);
-
-#if 0
-	if (info->attrs[NL80211_ATTR_TX_RATES]) {
-	if (nl80211_parse_tx_bitrate_mask(info, info->attrs, NL80211_ATTR_TX_RATES, &params->beacon_rate, dev, false, link_id))
+	if ((start_ap_msg->u.cfg80211.u.start_ap.tail_len == 0) ||
+		(start_ap_msg->u.cfg80211.u.start_ap.head_len == 0))
+	{
 		return;
 	}
-#endif
-
-	if (info->attrs[NL80211_ATTR_SMPS_MODE])
-	ap_params->smps_mode = nla_get_u8(info->attrs[NL80211_ATTR_SMPS_MODE]);
-	else
-	ap_params->smps_mode = NL80211_SMPS_OFF;
-
-	ap_params->pbss = nla_get_flag(info->attrs[NL80211_ATTR_PBSS]);
-
-	if (info->attrs[NL80211_ATTR_ACL_POLICY])
-	ap_params->acl = parse_acl_data(info);
-
-	ap_params->twt_responder =
-	nla_get_flag(info->attrs[NL80211_ATTR_TWT_RESPONDER]);
-
-	if (info->attrs[NL80211_ATTR_HE_OBSS_PD])
-	nl80211_parse_he_obss_pd(info->attrs[NL80211_ATTR_HE_OBSS_PD], &ap_params->he_obss_pd);
-
-	nl80211_calculate_ap_params(ap_params);
-
-	if (info->attrs[NL80211_ATTR_EXTERNAL_AUTH_SUPPORT])
-	ap_params->flags |= AP_SETTINGS_EXTERNAL_AUTH_SUPPORT;
-
-	printk("\t\tReceived start ap idx: %d ssid: %s width: %d freq1: %d head_len: %d tail_len: %d\n", idx, ap_params->ssid ? (char *)(ap_params->ssid) : "NA",
-	ap_params->chandef.width, ap_params->chandef.center_freq1, ap_params->beacon.head_len, ap_params->beacon.tail_len);
-
-	start_ap_msg->u.cfg80211.u.start_ap.ap_params = *ap_params;
-
 	push_to_char_device(start_ap_msg);
-
 }
 
 static void parse_set_wiphy(struct genl_info *info)
@@ -4689,7 +4283,7 @@ static void parse_new_if(struct genl_info *info)
 	add_if_msg->u.cfg80211.u.add_intf.phy_index = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY]);
 
 	if (info->attrs[NL80211_ATTR_IFNAME])
-	memcpy(add_if_msg->u.cfg80211.u.add_intf.name, nla_data(info->attrs[NL80211_ATTR_IFNAME]), MAX_CFG80211_INTF_NAME_SZ);
+	memcpy(add_if_msg->u.cfg80211.u.add_intf.name, nla_data(info->attrs[NL80211_ATTR_IFNAME]), WLAN_EMU_INTF_NAME_SZ);
 
 	if (info->attrs[NL80211_ATTR_MAC])
 	memcpy(add_if_msg->u.cfg80211.u.add_intf.macaddr, nla_data(info->attrs[NL80211_ATTR_MAC]), ETH_ALEN);
