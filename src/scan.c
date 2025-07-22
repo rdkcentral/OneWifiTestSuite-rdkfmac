@@ -1062,6 +1062,7 @@ void ieee80211_scan_work(struct work_struct *work)
 	goto out;
 
 out_complete:
+	msleep(100);
 	__ieee80211_scan_completed(&local->hw, aborted);
 out:
 	mutex_unlock(&local->mtx);
