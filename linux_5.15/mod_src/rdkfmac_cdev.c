@@ -488,6 +488,17 @@ void handle_cfg80211_msg_start_ap(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s
 	s_tmp += sizeof(int);
 	*len += sizeof(int);
 
+	printk("%s:%d PAVI\n", __func__, __LINE__);
+	memcpy(s_tmp, &(spec->u.cfg80211.u.start_ap.ssid_len), sizeof(size_t));
+	s_tmp += sizeof(size_t);
+	*len += sizeof(size_t);
+
+	printk("%s:%d PAVI\n", __func__, __LINE__);
+	memcpy(s_tmp, &(spec->u.cfg80211.u.start_ap.ssid), spec->u.cfg80211.u.start_ap.ssid_len);
+	s_tmp += spec->u.cfg80211.u.start_ap.ssid_len;
+	*len += spec->u.cfg80211.u.start_ap.ssid_len;
+
+	printk("%s:%d PAVI\n", __func__, __LINE__);
 	memcpy(s_tmp, &(spec->u.cfg80211.u.start_ap.head_len), sizeof(size_t));
 	s_tmp += sizeof(size_t);
 	*len += sizeof(size_t);

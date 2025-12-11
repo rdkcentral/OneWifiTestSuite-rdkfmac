@@ -622,6 +622,9 @@ static void handle_frame_probe_req(struct ieee80211_mgmt *probe_req, unsigned in
 
 static void handle_frame_probe_resp(struct ieee80211_mgmt *probe_resp, unsigned int probe_resp_len) {
 	wlan_emu_msg_data_t *add_probe_resp_msg;
+	u8 *ies_start;
+	u8 *pos;
+	size_t ies_len;
 
 	add_probe_resp_msg = kzalloc(sizeof(wlan_emu_msg_data_t), GFP_KERNEL);
 	if (!add_probe_resp_msg) {
@@ -637,6 +640,35 @@ static void handle_frame_probe_resp(struct ieee80211_mgmt *probe_resp, unsigned 
 		memcpy(add_probe_resp_msg->u.frm80211.u.frame.frame, probe_resp, probe_resp_len);
 		memcpy(add_probe_resp_msg->u.frm80211.u.frame.macaddr, probe_resp->bssid, ETH_ALEN);
 		memcpy(add_probe_resp_msg->u.frm80211.u.frame.client_macaddr, probe_resp->da, ETH_ALEN);
+		printk("%s:%d PAVI\n", __func__, __LINE__);
+		ies_start = probe_resp->u.beacon.variable;
+                ies_len = probe_resp_len - (ies_start - (u8 *)probe_resp);
+                pos = ies_start;
+		printk("%s:%d PAVI\n", __func__, __LINE__);
+                while (pos + 1 < ies_start + ies_len) {
+			printk("%s:%d PAVI\n", __func__, __LINE__);
+                        u8 element_id = pos[0];
+                        u8 element_len = pos[1];
+
+                        if (pos + 2 + element_len > ies_start + ies_len) {
+                        // Element extends beyond the end of the frame, handle error
+                                break;
+                        }
+
+                        if (element_id == WLAN_EID_SSID) {
+                                // Found the SSID
+				printk("%s:%d PAVI\n", __func__, __LINE__);
+                                if (element_len >= 32) {
+                                        element_len = 32; // Truncate if somehow longer than spec allows
+                                }
+                                                memcpy(add_probe_resp_msg->u.frm80211.u.frame.ssid, (const char *)(pos + 2), element_len);
+                                                add_probe_resp_msg->u.frm80211.u.frame.ssid_len = element_len;
+						printk("%s:%d PAVI\n", __func__, __LINE__);
+						break;
+                        }
+
+                }
+		printk("%s:%d PAVI\n", __func__, __LINE__);
 		push_to_char_device(add_probe_resp_msg);
 	}
 
@@ -4159,6 +4191,16 @@ static void parse_start_ap(struct genl_info *info)
 	start_ap_msg->u.cfg80211.ops = wlan_emu_cfg80211_ops_type_start_ap;
 	start_ap_msg->u.cfg80211.u.start_ap.ifindex = idx;
 	start_ap_msg->u.cfg80211.u.start_ap.phy_index = wiphy_idx;
+
+	if (info->attrs[NL80211_ATTR_SSID]) {
+		printk("%s:%d PAVI\n", __func__, __LINE__);
+		start_ap_msg->u.cfg80211.u.start_ap.ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
+		if (start_ap_msg->u.cfg80211.u.start_ap.ssid_len == 0)
+			return;
+		printk("%s:%d PAVI\n", __func__, __LINE__);
+		memcpy(start_ap_msg->u.cfg80211.u.start_ap.ssid, nla_data(info->attrs[NL80211_ATTR_SSID]), start_ap_msg->u.cfg80211.u.start_ap.ssid_len);
+		printk("%s:%d PAVI\n", __func__, __LINE__);
+	}
 
 	if (info->attrs[NL80211_ATTR_BEACON_HEAD])
 	{
