@@ -708,7 +708,7 @@ static void handle_frame_probe_resp(struct ieee80211_mgmt *probe_resp, unsigned 
             			}
 						memcpy(add_probe_resp_msg->u.frm80211.u.frame.ssid, (const char *)(pos + 2), element_len);
 						add_probe_resp_msg->u.frm80211.u.frame.ssid_len = element_len;
-						printk("%s:%d PAVI ssid is %s and len is %d\n", __func__, __LINE__, add_probe_resp_msg->u.frm80211.u.frame.ssid, add_probe_resp_msg->u.frm80211.u.frame.ssid_len);
+						printk("%s:%d PAVI ssid is %s and len is %zu\n", __func__, __LINE__, add_probe_resp_msg->u.frm80211.u.frame.ssid, add_probe_resp_msg->u.frm80211.u.frame.ssid_len);
 						break;
         		}
 
