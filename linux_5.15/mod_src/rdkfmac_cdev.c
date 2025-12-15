@@ -709,7 +709,7 @@ static void handle_frame(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s_tmp)
 	printk("%s:%d PAVI ops is %d\n", __func__, __LINE__, spec->u.frm80211.ops);
 	if (spec->u.frm80211.ops == wlan_emu_frm80211_ops_type_prb_resp) {
 		printk("%s:%d PAVI Entering probe response\n", __func__, __LINE__);
-		s_tmp += ETH_LEN;
+		s_tmp += ETH_ALEN;
 		memcpy(s_tmp, &spec->u.frm80211.u.frame.ssid_len, sizeof(size_t));
 		s_tmp += sizeof(size_t);
 		*len += sizeof(size_t);
