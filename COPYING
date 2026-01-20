@@ -1,0 +1,18 @@
+
+This software is licensed by Comcast under the GNU General
+Public License version 2 only, as per COPYING.GPLv2 and subject to any
+additional licenses included in this file.
+
+This repository also contains external opensourced code.  All the external code is GPLv2.0 licensed except for:
+airtime.c (ISC-licensed)
+nl80211_copy.h (MIT-licensed)
+
+Please see the headers of individual files for full details.
+
+Please use the following copyright for source within this repository:
+
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright 2025 Comcast Cable Communications Management, LLC
+ */
+
