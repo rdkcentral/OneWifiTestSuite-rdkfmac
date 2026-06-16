@@ -691,11 +691,9 @@ static void handle_frame_probe_resp(struct ieee80211_mgmt *probe_resp, unsigned 
 		memcpy(add_probe_resp_msg->u.frm80211.u.frame.macaddr, probe_resp->bssid, ETH_ALEN);
 		memcpy(add_probe_resp_msg->u.frm80211.u.frame.client_macaddr, probe_resp->da, ETH_ALEN);
 
-		printk("%s:%d PAVI\n", __func__, __LINE__);
 		ies_start = probe_resp->u.beacon.variable;
 		ies_len = probe_resp_len - (ies_start - (u8 *)probe_resp);
 		pos = ies_start;
-		printk("%s:%d PAVI\n", __func__, __LINE__);
     		while (pos + 1 < ies_start + ies_len) {
         		u8 element_id = pos[0];
         		u8 element_len = pos[1];
@@ -707,18 +705,15 @@ static void handle_frame_probe_resp(struct ieee80211_mgmt *probe_resp, unsigned 
 
         		if (element_id == WLAN_EID_SSID) {
             			// Found the SSID
-				printk("%s:%d PAVI\n", __func__, __LINE__);
             			if (element_len >= 32) {
                 			element_len = 32; // Truncate if somehow longer than spec allows
             			}
 						memcpy(add_probe_resp_msg->u.frm80211.u.frame.ssid, (const char *)(pos + 2), element_len);
 						add_probe_resp_msg->u.frm80211.u.frame.ssid_len = element_len;
-						printk("%s:%d PAVI ssid is %s and len is %zu\n", __func__, __LINE__, add_probe_resp_msg->u.frm80211.u.frame.ssid, add_probe_resp_msg->u.frm80211.u.frame.ssid_len);
 						break;
         		}
 
 		}
-		printk("%s:%d PAVI\n", __func__, __LINE__);
 		push_to_char_device(add_probe_resp_msg);
 	}
 
@@ -4732,14 +4727,10 @@ static void parse_start_ap(struct genl_info *info)
 	start_ap_msg->u.cfg80211.u.start_ap.phy_index = wiphy_idx;
 
 	if (info->attrs[NL80211_ATTR_SSID]) {
-		printk("%s:%d PAVI\n", __func__, __LINE__);
 		start_ap_msg->u.cfg80211.u.start_ap.ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
-		printk("%s:%d PAVI\n", __func__, __LINE__);
 		if (start_ap_msg->u.cfg80211.u.start_ap.ssid_len == 0)
                         return;
-		printk("%s:%d PAVI\n", __func__, __LINE__);
                 memcpy(start_ap_msg->u.cfg80211.u.start_ap.ssid, nla_data(info->attrs[NL80211_ATTR_SSID]), start_ap_msg->u.cfg80211.u.start_ap.ssid_len);
-		printk("%s:%d PAVI\n", __func__, __LINE__);
         }
 
 	if (info->attrs[NL80211_ATTR_BEACON_HEAD])
