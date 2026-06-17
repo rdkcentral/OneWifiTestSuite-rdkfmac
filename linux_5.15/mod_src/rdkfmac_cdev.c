@@ -488,6 +488,14 @@ void handle_cfg80211_msg_start_ap(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s
 	s_tmp += sizeof(int);
 	*len += sizeof(int);
 
+	memcpy(s_tmp, &(spec->u.cfg80211.u.start_ap.ssid_len), sizeof(size_t));
+	s_tmp += sizeof(size_t);
+	*len += sizeof(size_t);
+
+	memcpy(s_tmp, &(spec->u.cfg80211.u.start_ap.ssid), spec->u.cfg80211.u.start_ap.ssid_len);
+	s_tmp += spec->u.cfg80211.u.start_ap.ssid_len;
+	*len += spec->u.cfg80211.u.start_ap.ssid_len;
+
 	memcpy(s_tmp, &(spec->u.cfg80211.u.start_ap.head_len), sizeof(size_t));
 	s_tmp += sizeof(size_t);
 	*len += sizeof(size_t);
@@ -694,6 +702,18 @@ static void handle_frame(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s_tmp)
 
 	memcpy(s_tmp, spec->u.frm80211.u.frame.client_macaddr, ETH_ALEN);
 	*len += ETH_ALEN;
+
+	if (spec->u.frm80211.ops == wlan_emu_frm80211_ops_type_prb_resp) {
+		s_tmp += ETH_ALEN;
+		memcpy(s_tmp, &spec->u.frm80211.u.frame.ssid_len, sizeof(size_t));
+		s_tmp += sizeof(size_t);
+		*len += sizeof(size_t);
+
+		if (spec->u.frm80211.u.frame.ssid_len > 0) {
+			memcpy(s_tmp, spec->u.frm80211.u.frame.ssid, spec->u.frm80211.u.frame.ssid_len);
+			*len += spec->u.frm80211.u.frame.ssid_len;
+		}
+	}
 
 	return;
 }
