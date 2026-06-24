@@ -4192,13 +4192,6 @@ static void parse_start_ap(struct genl_info *info)
 	start_ap_msg->u.cfg80211.u.start_ap.ifindex = idx;
 	start_ap_msg->u.cfg80211.u.start_ap.phy_index = wiphy_idx;
 
-	if (info->attrs[NL80211_ATTR_SSID]) {
-		start_ap_msg->u.cfg80211.u.start_ap.ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
-		if (start_ap_msg->u.cfg80211.u.start_ap.ssid_len == 0)
-			return;
-		memcpy(start_ap_msg->u.cfg80211.u.start_ap.ssid, nla_data(info->attrs[NL80211_ATTR_SSID]), start_ap_msg->u.cfg80211.u.start_ap.ssid_len);
-	}
-
 	if (info->attrs[NL80211_ATTR_BEACON_HEAD])
 	{
 		start_ap_msg->u.cfg80211.u.start_ap.head_len = nla_len(info->attrs[NL80211_ATTR_BEACON_HEAD]);
