@@ -1835,7 +1835,13 @@ static bool ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 		return true;
 	}
 
-	/* initialises tx */
+    if (skb->protocol == htons(0x9002) || skb->protocol == htons(0x886c)) {
+        printk("Dropping self-injected packet\n");
+        ieee80211_free_txskb(&local->hw, skb);
+        return true;
+    }
+
+        /* initialises tx */
 	res_prepare = ieee80211_tx_prepare(sdata, &tx, sta, skb);
 
 	if (unlikely(res_prepare == TX_DROP)) {
@@ -1855,10 +1861,6 @@ static bool ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 		return true;
 
 	hdr = (void *)tx.skb->data;
-	if (ieee80211_is_data_qos(hdr->frame_control) &&
-		!ieee80211_is_qos_nullfunc(hdr->frame_control)) {
-		send_data_frame(skb->data, skb->len, &local->hw);
-	}
 
 	if (ieee80211_queue_skb(local, sdata, tx.sta, tx.skb))
 		return true;
@@ -3705,6 +3707,18 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 	if (unlikely(skb->len < ETH_HLEN)) {
 		kfree_skb(skb);
 		return;
+	}
+
+	/* drop emulator air frames the bridge floods back; re-xmit loops and grows the frame */
+	{
+		static const u8 emu_medium_mac[ETH_ALEN] =
+			{ 0xe8, 0xd8, 0xd1, 0x33, 0xbb, 0x46 };
+		u16 et = (skb->data[12] << 8) | skb->data[13];
+		if (ether_addr_equal(skb->data, emu_medium_mac) ||
+		    et == 9001 || et == 9002 || et == 0x886c) {
+			kfree_skb(skb);
+			return;
+		}
 	}
 
 	rcu_read_lock();

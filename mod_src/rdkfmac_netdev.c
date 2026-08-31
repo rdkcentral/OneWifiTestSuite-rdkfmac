@@ -841,10 +841,11 @@ static netdev_tx_t hwsim_mon_xmit(struct sk_buff *skb,
 		struct sk_buff *nskb;
 		struct ieee80211_rx_status rx_status = {0};
 		if(nic->idle || !nic->started || !nic->channel)
-		continue;
+        continue;
+
 		nskb = skb_copy(skb, GFP_ATOMIC);
 		if(nskb == NULL)
-		continue;
+	    continue;
 
 		rx_status.freq = freq;
 		memcpy(IEEE80211_SKB_RXCB(nskb), &rx_status, sizeof(rx_status));

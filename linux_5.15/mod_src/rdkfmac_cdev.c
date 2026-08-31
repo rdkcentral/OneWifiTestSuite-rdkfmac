@@ -125,6 +125,7 @@ void push_to_char_device(wlan_emu_msg_data_t *data)
 		printk("%s:%d: pushing data to queue, type: %s ops: %s current size: %d\n", __func__, __LINE__,
 			str_spec_type, str_ops, get_list_entries_count_in_char_device());
 	}
+
 	list_add(&entry->list_entry, g_char_device.list_tail);
 	g_char_device.list_tail = &entry->list_entry;
 
@@ -704,8 +705,8 @@ static int rdkfmac_release(struct inode *inode, struct file *file)
 		g_char_device.num_inst--;
 	}
 
-		printk(KERN_INFO "%s:%d Opened Instances: %d\n", __func__, __LINE__, g_char_device.num_inst);
-		return 0;
+	    printk(KERN_INFO "%s:%d Opened Instances: %d\n", __func__, __LINE__, g_char_device.num_inst);
+	    return 0;
 }
 
 const struct file_operations rdkfmac_fops = {
