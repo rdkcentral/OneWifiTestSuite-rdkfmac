@@ -866,6 +866,11 @@ static void handle_frame_probe_resp(struct ieee80211_mgmt *probe_resp, unsigned 
 		memcpy(add_probe_resp_msg->u.frm80211.u.frame.client_macaddr, probe_resp->da, ETH_ALEN);
 
 		ies_start = probe_resp->u.beacon.variable;
+		if (probe_resp_len < (size_t)(ies_start - (u8 *)probe_resp)) {
+			push_to_char_device(add_probe_resp_msg);
+			kfree(add_probe_resp_msg);
+			return;
+		}
 		ies_len = probe_resp_len - (ies_start - (u8 *)probe_resp);
 		pos = ies_start;
     		while (pos + 1 < ies_start + ies_len) {
@@ -886,7 +891,7 @@ static void handle_frame_probe_resp(struct ieee80211_mgmt *probe_resp, unsigned 
 						add_probe_resp_msg->u.frm80211.u.frame.ssid_len = element_len;
 						break;
         		}
-
+                pos += 2 + element_len;
 		}
 		push_to_char_device(add_probe_resp_msg);
 	}
@@ -5121,8 +5126,10 @@ static void parse_start_ap(struct genl_info *info)
 		start_ap_msg->u.cfg80211.u.start_ap.ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
 		if (start_ap_msg->u.cfg80211.u.start_ap.ssid_len == 0)
                         return;
-                memcpy(start_ap_msg->u.cfg80211.u.start_ap.ssid, nla_data(info->attrs[NL80211_ATTR_SSID]), start_ap_msg->u.cfg80211.u.start_ap.ssid_len);
-        }
+        if (start_ap_msg->u.cfg80211.u.start_ap.ssid_len > sizeof(start_ap_msg->u.cfg80211.u.start_ap.ssid))
+                        start_ap_msg->u.cfg80211.u.start_ap.ssid_len = sizeof(start_ap_msg->u.cfg80211.u.start_ap.ssid);
+        memcpy(start_ap_msg->u.cfg80211.u.start_ap.ssid, nla_data(info->attrs[NL80211_ATTR_SSID]), start_ap_msg->u.cfg80211.u.start_ap.ssid_len);
+    }
 
 	if (info->attrs[NL80211_ATTR_BEACON_HEAD])
 	{

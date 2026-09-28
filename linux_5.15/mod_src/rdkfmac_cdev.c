@@ -624,8 +624,14 @@ static void handle_frame(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s_tmp)
 		*len += sizeof(size_t);
 
 		if (spec->u.frm80211.u.frame.ssid_len > 0) {
-			memcpy(s_tmp, spec->u.frm80211.u.frame.ssid, spec->u.frm80211.u.frame.ssid_len);
-			*len += spec->u.frm80211.u.frame.ssid_len;
+			size_t ssid_copy_len = spec->u.frm80211.u.frame.ssid_len;
+
+			if (ssid_copy_len > sizeof(spec->u.frm80211.u.frame.ssid)) {
+				ssid_copy_len = sizeof(spec->u.frm80211.u.frame.ssid);
+			}
+
+			memcpy(s_tmp, spec->u.frm80211.u.frame.ssid, ssid_copy_len);
+			*len += ssid_copy_len;
 		}
 	}
 
