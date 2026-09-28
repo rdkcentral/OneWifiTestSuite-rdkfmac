@@ -228,7 +228,8 @@ typedef enum {
 	wlan_emu_msg_type_cfg80211,
 	wlan_emu_msg_type_mac80211,
 	wlan_emu_msg_type_frm80211,
-	wlan_emu_msg_type_webconfig
+	wlan_emu_msg_type_webconfig,
+	wlan_emu_msg_type_agent
 } wlan_emu_msg_type_t;
 
 typedef enum {
@@ -333,6 +334,49 @@ typedef struct {
 	webconfig_subdoc_type_t subdoc_type;
 } wlan_emu_msg_type_webconfig_t;
 
+typedef enum {
+	wlan_msg_ext_agent_ops_sub_type_wifi_notification=1
+} wlan_msg_ext_agent_ops_sub_type_t;
+
+typedef enum {
+	wlan_emu_ext_wifi_sta_state_connected=1,
+	wlan_emu_ext_wifi_sta_state_disconnected
+} wlan_emu_ext_wifi_sta_state_t;
+
+typedef struct {
+	wlan_emu_ext_wifi_sta_state_t sta_state;
+	u8 sta_mac_addr[ETH_ALEN];
+	u8 bssid_mac_addr[ETH_ALEN];
+} wlan_emu_msg_type_ext_wifi_sta_notif_t;
+
+typedef struct {
+	wlan_msg_ext_agent_ops_sub_type_t sub_ops_type;
+
+	union {
+		wlan_emu_msg_type_ext_wifi_sta_notif_t wifi_sta_notif;
+	} u;
+} wlan_emu_msg_type_agent_notification_t;
+
+typedef enum {
+	wlan_emu_msg_agent_ops_type_cmd,
+	wlan_emu_msg_agent_ops_type_data,
+	wlan_emu_msg_agent_ops_type_notification
+} wlan_emu_msg_agent_ops_t;
+
+typedef enum {
+	wlan_emu_msg_agent_cmd_type_start,
+	wlan_emu_msg_agent_cmd_type_stop
+} wlan_emu_msg_agent_cmd_t;
+
+typedef struct {
+	wlan_emu_msg_agent_ops_t ops;
+	union {
+		wlan_emu_msg_agent_cmd_t cmd;
+		void __user *buf;
+		wlan_emu_msg_type_agent_notification_t agent_notif;
+	} u;
+} wlan_emu_msg_type_agent_msg_t;
+
 typedef struct {
 	wlan_emu_msg_type_t	type;
 	union {
@@ -341,6 +385,7 @@ typedef struct {
 		wlan_emu_msg_emu80211_t	emu80211;
 		wlan_emu_msg_frm80211_t frm80211;
 		wlan_emu_msg_type_webconfig_t  ow_webconfig;
+		wlan_emu_msg_type_agent_msg_t agent_msg;
 	} u;
 } wlan_emu_msg_data_t;
 
