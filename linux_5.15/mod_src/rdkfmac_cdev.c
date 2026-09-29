@@ -117,11 +117,15 @@ void push_to_char_device(wlan_emu_msg_data_t *data)
 			strcpy(str_ops, "onewifi_webconfig");
 			break;
 
+		case wlan_emu_msg_type_agent:
+			break;
+
 		default:
 			break;
 	}
 
-	if ((spec->type != wlan_emu_msg_type_webconfig) && (spec->type != wlan_emu_msg_type_frm80211)) {
+	if ((spec->type != wlan_emu_msg_type_webconfig) && (spec->type != wlan_emu_msg_type_frm80211) &&
+	(spec->type != wlan_emu_msg_type_agent)) {
 		printk("%s:%d: pushing data to queue, type: %s ops: %s current size: %d\n", __func__, __LINE__,
 			str_spec_type, str_ops, get_list_entries_count_in_char_device());
 	}
@@ -253,6 +257,29 @@ static void handle_emu80211_msg_w(wlan_emu_msg_data_t *spec) {
 			push_to_rdkfmac_device(spec);
 			break;
 
+		default:
+			break;
+	}
+	return;
+}
+
+static void handle_agent_msg_w(wlan_emu_msg_data_t *spec) {
+	switch (spec->u.agent_msg.ops) {
+		case wlan_emu_msg_agent_ops_type_cmd:
+			if (spec->u.agent_msg.u.cmd == wlan_emu_msg_agent_cmd_type_start) {
+				rdkfmac_emu80211_close = false;
+				push_to_char_device(spec);
+			} else if (spec->u.agent_msg.u.cmd == wlan_emu_msg_agent_cmd_type_stop) {
+				//rdkfmac_emu80211_close = true;
+				push_to_char_device(spec);
+			}
+			break;
+		case wlan_emu_msg_agent_ops_type_data:
+			push_to_char_device(spec);
+			break;
+		case wlan_emu_msg_agent_ops_type_notification:
+			push_to_char_device(spec);
+			break;
 		default:
 			break;
 	}
@@ -418,6 +445,11 @@ static ssize_t rdkfmac_write(struct file *file, const char __user *user_buffer,
 			push_to_char_device(pSpec);
 			sz = sizeof(wlan_emu_msg_data_t);
 			break;
+		case wlan_emu_msg_type_agent:
+			memcpy(pSpec, read_buff, sizeof(wlan_emu_msg_data_t));
+			handle_agent_msg_w(pSpec);
+			sz = sizeof(wlan_emu_msg_data_t);
+			break;
 		default:
 			printk("%s:%d Invalid read operation\n",__func__, __LINE__);
 			sz = 0;
@@ -452,6 +484,14 @@ void handle_cfg80211_msg_start_ap(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s
 	memcpy(s_tmp, &(spec->u.cfg80211.u.start_ap.phy_index), sizeof(int));
 	s_tmp += sizeof(int);
 	*len += sizeof(int);
+
+	memcpy(s_tmp, &(spec->u.cfg80211.u.start_ap.ssid_len), sizeof(size_t));
+	s_tmp += sizeof(size_t);
+	*len += sizeof(size_t);
+
+	memcpy(s_tmp, &(spec->u.cfg80211.u.start_ap.ssid), spec->u.cfg80211.u.start_ap.ssid_len);
+	s_tmp += spec->u.cfg80211.u.start_ap.ssid_len;
+	*len += spec->u.cfg80211.u.start_ap.ssid_len;
 
 	memcpy(s_tmp, &(spec->u.cfg80211.u.start_ap.head_len), sizeof(size_t));
 	s_tmp += sizeof(size_t);
@@ -583,6 +623,57 @@ void handle_webconfig_msg(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s_tmp)
     return;
 }
 
+void handle_agent_msg(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s_tmp)
+{
+	if ((spec == NULL) || (s_tmp == NULL) || (len == NULL)) {
+		printk(KERN_INFO "%s:%d: NULL Pointer spec : %p s_tmp : %s len : %p \n", __func__, __LINE__, spec, s_tmp, len);
+		return;
+	}
+
+	memcpy(s_tmp, &spec->type, sizeof(wlan_emu_msg_type_t));
+	s_tmp += sizeof(wlan_emu_msg_type_t);
+	*len += sizeof(wlan_emu_msg_type_t);
+
+	memcpy(s_tmp, &spec->u.agent_msg.ops, sizeof(wlan_emu_msg_agent_ops_t));
+	s_tmp += sizeof(wlan_emu_msg_agent_ops_t);
+	*len += sizeof(wlan_emu_msg_agent_ops_t);
+
+
+	if (spec->u.agent_msg.ops == wlan_emu_msg_agent_ops_type_cmd) {
+		memcpy(s_tmp, &spec->u.agent_msg.u.cmd, sizeof(wlan_emu_msg_agent_cmd_t));
+		s_tmp += sizeof(wlan_emu_msg_agent_cmd_t);
+		*len += sizeof(wlan_emu_msg_agent_cmd_t);
+	}
+
+	if (spec->u.agent_msg.ops == wlan_emu_msg_agent_ops_type_data) {
+		memcpy(s_tmp, &spec->u.agent_msg.u.buf, sizeof(void *));
+		s_tmp += sizeof(void *);
+		*len += sizeof(void *);
+	}
+
+	if (spec->u.agent_msg.ops == wlan_emu_msg_agent_ops_type_notification) {
+		memcpy(s_tmp, &spec->u.agent_msg.u.agent_notif.sub_ops_type, sizeof(int));
+		s_tmp += sizeof(int);
+		*len += sizeof(int);
+
+		if (spec->u.agent_msg.u.agent_notif.sub_ops_type == wlan_msg_ext_agent_ops_sub_type_wifi_notification) {
+			memcpy(s_tmp, &spec->u.agent_msg.u.agent_notif.u.wifi_sta_notif.sta_state, sizeof(int));
+			s_tmp += sizeof(int);
+			*len += sizeof(int);
+
+			memcpy(s_tmp, spec->u.agent_msg.u.agent_notif.u.wifi_sta_notif.sta_mac_addr, ETH_ALEN);
+			s_tmp += ETH_ALEN;
+			*len += ETH_ALEN;
+
+			memcpy(s_tmp, spec->u.agent_msg.u.agent_notif.u.wifi_sta_notif.bssid_mac_addr, ETH_ALEN);
+			s_tmp += ETH_ALEN;
+			*len += ETH_ALEN;
+		}
+	}
+
+	return;
+}
+
 static void handle_frame(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s_tmp)
 {
 	memcpy(s_tmp, &spec->type, sizeof(wlan_emu_msg_type_t));
@@ -608,6 +699,18 @@ static void handle_frame(wlan_emu_msg_data_t *spec, ssize_t *len, u8 *s_tmp)
 
 	memcpy(s_tmp, spec->u.frm80211.u.frame.client_macaddr, ETH_ALEN);
 	*len += ETH_ALEN;
+
+	if (spec->u.frm80211.ops == wlan_emu_frm80211_ops_type_prb_resp) {
+		s_tmp += ETH_ALEN;
+		memcpy(s_tmp, &spec->u.frm80211.u.frame.ssid_len, sizeof(size_t));
+		s_tmp += sizeof(size_t);
+		*len += sizeof(size_t);
+
+		if (spec->u.frm80211.u.frame.ssid_len > 0) {
+			memcpy(s_tmp, spec->u.frm80211.u.frame.ssid, spec->u.frm80211.u.frame.ssid_len);
+			*len += spec->u.frm80211.u.frame.ssid_len;
+		}
+	}
 
 	return;
 }
@@ -669,6 +772,9 @@ static ssize_t rdkfmac_read(struct file *file, char __user *user_buffer,
 			break;
 		case wlan_emu_msg_type_webconfig:
 			handle_webconfig_msg(spec, &return_len, s_tmp);
+			break;
+		case wlan_emu_msg_type_agent:
+			handle_agent_msg(spec, &return_len, s_tmp);
 			break;
 		default:
 			break;
